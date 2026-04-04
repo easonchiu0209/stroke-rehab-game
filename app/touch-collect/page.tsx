@@ -53,7 +53,7 @@ function PlayingView({
   const videoRef  = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const { isReady, error: cameraError, startCamera, stopCamera, isMirrored } = useCamera(videoRef)
+  const { isReady, error: cameraError, startCamera, stopCamera, isMirrored, switchCamera, currentFacing, isSwitching } = useCamera(videoRef)
 
   const { holdProgress, handDetected, timeRemaining } = useTouchDetector({
     landmarker,
@@ -190,6 +190,31 @@ function PlayingView({
               🎯 AR 偵測中
             </span>
           </div>
+        )}
+
+        {/* 前後鏡頭切換按鈕 */}
+        {(isReady || isSwitching) && (
+          <button
+            onClick={switchCamera}
+            disabled={isSwitching}
+            className="
+              absolute bottom-4 right-4
+              bg-black/50 backdrop-blur-sm text-white
+              w-12 h-12 rounded-full
+              flex items-center justify-center
+              text-xl
+              hover:bg-black/70 active:scale-90
+              transition-all duration-150
+              disabled:opacity-50
+            "
+            title={currentFacing === 'environment' ? '切換至前置鏡頭' : '切換至後置鏡頭'}
+          >
+            {isSwitching ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+            ) : (
+              '🔄'
+            )}
+          </button>
         )}
 
         {/* Current target hint */}

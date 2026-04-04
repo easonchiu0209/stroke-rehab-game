@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef } from 'react'
 
+export type CameraFacing = 'environment' | 'user'
+
 export type CameraError = {
   type: 'permission_denied' | 'not_found' | 'not_supported' | 'unknown'
   message: string
@@ -9,17 +11,18 @@ export type CameraError = {
 
 /**
  * useCamera
- * 優先使用後置鏡頭 (environment) 供平板俯拍桌面；
- * 若不支援則 fallback 至前置鏡頭 (user)。
+ * 支援前後鏡頭切換。
  * isMirrored = true 表示使用前置鏡頭，需在繪圖時翻轉 landmark x 座標。
  */
 export function useCamera(videoRef: React.RefObject<HTMLVideoElement>) {
-  const [isReady, setIsReady]     = useState(false)
-  const [error,   setError]       = useState<CameraError | null>(null)
-  const [isMirrored, setIsMirrored] = useState(false)
+  const [isReady,       setIsReady]       = useState(false)
+  const [error,         setError]         = useState<CameraError | null>(null)
+  const [isMirrored,    setIsMirrored]    = useState(false)
+  const [currentFacing, setCurrentFacing] = useState<CameraFacing>('environment')
+  const [isSwitching,   setIsSwitching]   = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (preferFacing: CameraFacing = 'environment') => {
     setIsReady(false)
     setError(null)
 
@@ -28,20 +31,29 @@ export function useCamera(videoRef: React.RefObject<HTMLVideoElement>) {
       return
     }
 
-    // Try environment (rear) first → user (front) → generic
-    const attempts: Array<{ constraints: MediaStreamConstraints; mirrored: boolean }> = [
-      { constraints: { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'environment' } }, mirrored: false },
-      { constraints: { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user'        } }, mirrored: true  },
-      { constraints: { video: true }, mirrored: true },
-    ]
+    // 依 preferFacing 決定嘗試順序
+    type Attempt = { constraints: MediaStreamConstraints; mirrored: boolean; facing: CameraFacing }
+    const attempts: Attempt[] = preferFacing === 'environment'
+      ? [
+          { constraints: { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'environment' } }, mirrored: false, facing: 'environment' },
+          { constraints: { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user'        } }, mirrored: true,  facing: 'user'        },
+          { constraints: { video: true },                                                                         mirrored: true,  facing: 'user'        },
+        ]
+      : [
+          { constraints: { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user'        } }, mirrored: true,  facing: 'user'        },
+          { constraints: { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'environment' } }, mirrored: false, facing: 'environment' },
+          { constraints: { video: true },                                                                         mirrored: true,  facing: 'user'        },
+        ]
 
     let stream: MediaStream | null = null
     let mirrored = false
+    let resolvedFacing: CameraFacing = preferFacing
 
     for (const attempt of attempts) {
       try {
         stream = await navigator.mediaDevices.getUserMedia(attempt.constraints)
-        mirrored = attempt.mirrored
+        mirrored        = attempt.mirrored
+        resolvedFacing  = attempt.facing
         break
       } catch {
         // try next
@@ -55,6 +67,7 @@ export function useCamera(videoRef: React.RefObject<HTMLVideoElement>) {
 
     streamRef.current = stream
     setIsMirrored(mirrored)
+    setCurrentFacing(resolvedFacing)
 
     if (videoRef.current) {
       videoRef.current.srcObject = stream
@@ -85,5 +98,14 @@ export function useCamera(videoRef: React.RefObject<HTMLVideoElement>) {
     setIsReady(false)
   }, [videoRef])
 
-  return { isReady, error, startCamera, stopCamera, isMirrored }
+  const switchCamera = useCallback(async () => {
+    if (isSwitching) return
+    setIsSwitching(true)
+    const next: CameraFacing = currentFacing === 'environment' ? 'user' : 'environment'
+    stopCamera()
+    await startCamera(next)
+    setIsSwitching(false)
+  }, [currentFacing, isSwitching, startCamera, stopCamera])
+
+  return { isReady, error, startCamera, stopCamera, isMirrored, switchCamera, currentFacing, isSwitching }
 }
