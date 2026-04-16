@@ -46,7 +46,7 @@ const GAMES: GameCardData[] = [
     levelBadge:  'bg-orange-100 text-orange-800',
     description: '沿著指定路徑移動手腕，訓練肩肘協調流暢度與連續動作控制',
     route:       '/wipe-trace',
-    available:   false,
+    available:   true,
   },
   {
     id:          'pinch-sort',

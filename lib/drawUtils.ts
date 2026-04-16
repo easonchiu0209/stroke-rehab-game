@@ -1,6 +1,7 @@
 import type { HandLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision'
 import type { TaskPosition, GameMode } from '@/types/game'
 import type { TcDot } from '@/lib/touchCollectConstants'
+import type { WtPath } from '@/lib/wipeTraceConstants'
 
 // ── MediaPipe 21-landmark 連線定義 ──────────────────────────────
 const HAND_CONNECTIONS: [number, number][] = [
@@ -340,4 +341,205 @@ export function drawTouchCollectOverlay(
   ctx.textBaseline = 'alphabetic'
   ctx.shadowBlur   = 0
   ctx.lineCap      = 'butt'
+}
+
+// ════════════════════════════════════════════════════════════════════
+// drawWipeTraceOverlay — 擦拭軌跡遊戲 AR 疊層
+// ════════════════════════════════════════════════════════════════════
+
+export interface DrawWipeTraceOptions {
+  path:          WtPath
+  progress:      number                      // 已擦過的路徑點數（0-20）
+  tolerancePx:   number                      // 以 640px 為基準的容差
+  isOnPath:      boolean                     // 手腕是否在容差範圍內
+  isMirrored:    boolean
+  results:       HandLandmarkerResult | null
+  timeRemaining: number                      // ms
+  timeLimitMs:   number
+}
+
+export function drawWipeTraceOverlay(
+  canvas: HTMLCanvasElement,
+  opts:   DrawWipeTraceOptions,
+): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const { width: w, height: h } = canvas
+  const { path, progress, tolerancePx, isOnPath, isMirrored, results, timeRemaining, timeLimitMs } = opts
+  const { waypoints } = path
+  const total = waypoints.length
+  const scale = w / 640
+  const now   = performance.now()
+
+  ctx.clearRect(0, 0, w, h)
+  ctx.textBaseline = 'middle'
+  ctx.textAlign    = 'center'
+
+  const lmX = (x: number) => isMirrored ? (1 - x) * w : x * w
+  const lmY = (y: number) => y * h
+
+  const wpX = (wp: { x: number }) => wp.x * w
+  const wpY = (wp: { y: number }) => wp.y * h
+
+  // ── Layer 1: 全路徑底線（灰色） ─────────────────────────────────
+  if (total > 1) {
+    ctx.beginPath()
+    ctx.moveTo(wpX(waypoints[0]), wpY(waypoints[0]))
+    for (let i = 1; i < total; i++) {
+      ctx.lineTo(wpX(waypoints[i]), wpY(waypoints[i]))
+    }
+    ctx.strokeStyle = 'rgba(180, 180, 180, 0.40)'
+    ctx.lineWidth   = 8 * scale
+    ctx.lineCap     = 'round'
+    ctx.lineJoin    = 'round'
+    ctx.stroke()
+  }
+
+  // ── Layer 2: 已擦淨段（亮綠色） ────────────────────────────────
+  if (progress > 1) {
+    ctx.beginPath()
+    ctx.moveTo(wpX(waypoints[0]), wpY(waypoints[0]))
+    for (let i = 1; i < progress; i++) {
+      ctx.lineTo(wpX(waypoints[i]), wpY(waypoints[i]))
+    }
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.90)'
+    ctx.lineWidth   = 10 * scale
+    ctx.lineCap     = 'round'
+    ctx.lineJoin    = 'round'
+    ctx.stroke()
+  }
+
+  // ── Layer 3: 已完成的路徑點（小綠點） ──────────────────────────
+  for (let i = 0; i < progress; i++) {
+    ctx.beginPath()
+    ctx.arc(wpX(waypoints[i]), wpY(waypoints[i]), 4 * scale, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.70)'
+    ctx.fill()
+  }
+
+  // ── Layer 4: 當前目標點（脈衝黃橙圓） ──────────────────────────
+  if (progress < total) {
+    const target = waypoints[progress]
+    const cx     = wpX(target)
+    const cy     = wpY(target)
+    const pulse  = 0.20 * Math.sin(now / 300)
+    const baseR  = 20 * scale
+
+    // 外暈
+    ctx.beginPath()
+    ctx.arc(cx, cy, (baseR + 14 * scale) * (1 + pulse), 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.22)'
+    ctx.fill()
+
+    // 內圓
+    ctx.beginPath()
+    ctx.arc(cx, cy, baseR * (1 + pulse), 0, Math.PI * 2)
+    ctx.fillStyle   = 'rgba(245, 158, 11, 0.90)'
+    ctx.fill()
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth   = 2.5 * scale
+    ctx.stroke()
+  }
+
+  // ── Layer 5: 未來路徑點（小灰點） ──────────────────────────────
+  for (let i = progress + 1; i < total; i++) {
+    ctx.beginPath()
+    ctx.arc(wpX(waypoints[i]), wpY(waypoints[i]), 5 * scale, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(156, 163, 175, 0.50)'
+    ctx.fill()
+  }
+
+  // ── Layer 6: 起點方向箭頭（progress === 0 時） ─────────────────
+  if (progress === 0 && total > 1) {
+    const sx  = wpX(waypoints[0])
+    const sy  = wpY(waypoints[0])
+    const ex  = wpX(waypoints[1])
+    const ey  = wpY(waypoints[1])
+    const ang = Math.atan2(ey - sy, ex - sx)
+    const al  = 18 * scale  // arrow length
+
+    ctx.save()
+    ctx.translate(sx, sy)
+    ctx.rotate(ang)
+    ctx.beginPath()
+    ctx.moveTo(al, 0)
+    ctx.lineTo(-al * 0.5,  al * 0.5)
+    ctx.lineTo(-al * 0.5, -al * 0.5)
+    ctx.closePath()
+    ctx.fillStyle   = 'rgba(255, 255, 255, 0.85)'
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'
+    ctx.shadowBlur  = 4
+    ctx.fill()
+    ctx.shadowBlur  = 0
+    ctx.restore()
+  }
+
+  // ── Layer 7: 手腕游標 ───────────────────────────────────────────
+  if (results && results.landmarks.length > 0) {
+    const wrist = results.landmarks[0][0] as NormalizedLandmark
+    const wx    = lmX(wrist.x)
+    const wy    = lmY(wrist.y)
+    const cr    = 18 * scale
+
+    ctx.beginPath()
+    ctx.arc(wx, wy, cr, 0, Math.PI * 2)
+    ctx.fillStyle   = isOnPath ? 'rgba(52, 211, 153, 0.75)' : 'rgba(239, 68, 68, 0.75)'
+    ctx.fill()
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth   = 3 * scale
+    ctx.stroke()
+  }
+
+  // ── Layer 8: 手部骨架 ───────────────────────────────────────────
+  if (results && results.landmarks.length > 0) {
+    for (const hand of results.landmarks) {
+      ctx.strokeStyle = 'rgba(0, 220, 120, 0.70)'
+      ctx.lineWidth   = 2
+      for (const [a, b] of HAND_CONNECTIONS) {
+        const lmA = hand[a] as NormalizedLandmark
+        const lmB = hand[b] as NormalizedLandmark
+        ctx.beginPath()
+        ctx.moveTo(lmX(lmA.x), lmY(lmA.y))
+        ctx.lineTo(lmX(lmB.x), lmY(lmB.y))
+        ctx.stroke()
+      }
+      for (const lm of hand as NormalizedLandmark[]) {
+        ctx.fillStyle = '#00DC78'
+        ctx.beginPath()
+        ctx.arc(lmX(lm.x), lmY(lm.y), 3, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+  }
+
+  // ── Layer 9: 底部進度條 ────────────────────────────────────────
+  const barH    = Math.max(14, Math.round(h * 0.028))
+  const fillPct = total > 0 ? progress / total : 0
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.40)'
+  ctx.fillRect(0, h - barH, w, barH)
+  if (fillPct > 0) {
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.90)'
+    ctx.fillRect(0, h - barH, w * fillPct, barH)
+  }
+
+  // ── Layer 10: 右上角倒數計時 ───────────────────────────────────
+  if (timeLimitMs > 0) {
+    const secLeft  = Math.ceil(timeRemaining / 1000)
+    const fontSize = Math.max(20, Math.round(28 * scale))
+    ctx.font        = `bold ${fontSize}px monospace`
+    ctx.textAlign   = 'right'
+    ctx.textBaseline = 'top'
+    ctx.fillStyle   = timeRemaining < 5000 ? 'rgba(239, 68, 68, 1)' : 'rgba(255, 255, 255, 0.90)'
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'
+    ctx.shadowBlur  = 5
+    ctx.fillText(`${secLeft}s`, w - 12 * scale, 10 * scale)
+    ctx.shadowBlur  = 0
+  }
+
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign    = 'left'
+  ctx.lineCap      = 'butt'
+  ctx.lineJoin     = 'miter'
 }
