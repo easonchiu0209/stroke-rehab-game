@@ -74,8 +74,9 @@ function PlayingView({
   })
 
   // 開啟鏡頭（mount 時），關閉（unmount 時）
+  // 復健遊戲需要前置鏡頭（self-monitoring），明確指定 'user'
   useEffect(() => {
-    startCamera()
+    startCamera('user')
     return () => stopCamera()
   }, [startCamera, stopCamera])
 

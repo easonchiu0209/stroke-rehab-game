@@ -38,8 +38,9 @@ export function CameraView({
     onSuccess,
   })
 
+  // 復健遊戲需要前置鏡頭（self-monitoring），明確指定 'user'
   useEffect(() => {
-    startCamera()
+    startCamera('user')
     return () => stopCamera()
   }, [startCamera, stopCamera])
 
