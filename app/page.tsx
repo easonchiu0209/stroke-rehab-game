@@ -34,7 +34,7 @@ const GAMES: GameCardData[] = [
     level:       'Level 2',
     levelBadge:  'bg-blue-100 text-blue-800',
     description: '將手移到指定位置並停留，訓練上肢空間定位與手臂控制穩定度',
-    route:       '/game',
+    route:       '/game/setup',
     available:   true,
   },
   {

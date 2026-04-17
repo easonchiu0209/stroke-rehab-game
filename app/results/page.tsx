@@ -26,7 +26,7 @@ export default function ResultsPage() {
 
   function handlePlayAgain() {
     dispatch({ type: 'RESET' })
-    router.push('/')
+    router.push('/game/setup')
   }
 
   function handleHome() {
