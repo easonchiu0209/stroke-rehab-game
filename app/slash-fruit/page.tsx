@@ -321,8 +321,6 @@ function PlayingView({
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden bg-gray-900">
-      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-
       {/* HUD */}
       <div className="flex justify-between items-center px-6 py-3 bg-black/60 text-white shrink-0 z-10">
         <div>
@@ -354,6 +352,12 @@ function PlayingView({
 
       {/* Camera + canvas */}
       <div className="relative flex-1 overflow-hidden bg-black">
+        <video
+          ref={videoRef}
+          autoPlay playsInline muted
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)' }}
+        />
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full object-cover"
