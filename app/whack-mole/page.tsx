@@ -268,10 +268,10 @@ function PlayingView({
       </div>
 
       {/* ── Game area ────────────────────────────────────────────── */}
-      <div ref={areaRef} className="relative flex-1 overflow-hidden bg-green-950">
+      <div ref={areaRef} className="relative flex-1 overflow-hidden bg-black">
 
-        {/* Camera feed (hidden) + canvas overlay */}
-        <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover opacity-10" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }} />
+        {/* Camera feed + canvas overlay */}
+        <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }} />
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }} />
 
         {/* Mole targets */}
@@ -288,23 +288,24 @@ function PlayingView({
                 height:    cssRadiusPx * 2,
                 borderRadius: '50%',
                 background: isHit
-                  ? 'radial-gradient(circle at 40% 35%, #FFEB3B, #FF9800 70%)'
-                  : 'radial-gradient(circle at 40% 35%, #FFF59D, #FFD600 50%, #F57F17 100%)',
-                border:    isHit ? '4px solid #FF6F00' : '4px solid rgba(255,255,255,0.9)',
+                  ? 'radial-gradient(circle, #FFD600, #FF6F00)'
+                  : 'radial-gradient(circle at 40% 35%, #ffffff, #e8f5e9 40%, #4CAF50 100%)',
+                border:    isHit ? '4px solid #FF6F00' : '4px solid #fff',
                 boxShadow: isHit
-                  ? '0 0 40px rgba(255,152,0,0.9)'
-                  : '0 6px 24px rgba(0,0,0,0.6)',
-                transform:   isHit ? 'scale(1.5)' : 'scale(1)',
+                  ? '0 0 50px rgba(255,214,0,1)'
+                  : '0 4px 20px rgba(0,0,0,0.7), 0 0 0 4px rgba(255,255,255,0.3)',
+                transform:   isHit ? 'scale(1.6)' : 'scale(1)',
                 opacity:     isHit ? 0 : 1,
                 transition:  isHit ? 'transform 0.25s ease-out, opacity 0.25s' : 'none',
-                animation:   isHit ? 'none' : 'molePulse 1s ease-in-out infinite',
+                animation:   isHit ? 'none' : 'molePulse 1.2s ease-in-out infinite',
                 display:     'flex',
                 alignItems:  'center',
                 justifyContent: 'center',
+                fontSize:    cssRadiusPx * 1.1,
+                lineHeight:  1,
               }}
             >
-              {/* Center dot */}
-              <div style={{ width: cssRadiusPx * 0.3, height: cssRadiusPx * 0.3, borderRadius: '50%', background: 'rgba(255,255,255,0.7)' }} />
+              🐭
             </div>
           )
         })}
