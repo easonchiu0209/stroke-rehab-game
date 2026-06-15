@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useSession, signIn } from 'next-auth/react'
 
 interface GameCardData {
   id:          string
@@ -85,9 +86,34 @@ const GAMES: GameCardData[] = [
 
 export default function HomePage() {
   const router = useRouter()
+  const { data: session } = useSession()
 
   return (
     <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-8 bg-gradient-to-b from-blue-50 to-gray-50">
+
+      {/* Top bar */}
+      <div className="w-full max-w-2xl flex justify-between items-center">
+        {session ? (
+          <button onClick={() => router.push('/profile')} className="flex items-center gap-2 bg-white rounded-2xl px-3 py-2 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
+              {session.user.image
+                ? <img src={session.user.image} alt="" className="w-full h-full object-cover" />
+                : <span className="text-lg flex items-center justify-center h-full">🙂</span>
+              }
+            </div>
+            <span className="font-semibold text-gray-800 text-sm">{session.user.displayName}</span>
+            <span className="font-bold text-purple-600 text-sm">⭐ {session.user.totalPoints}</span>
+          </button>
+        ) : (
+          <button onClick={() => signIn('line')} className="flex items-center gap-2 px-4 py-2 rounded-2xl font-bold text-white text-sm" style={{ background: '#06C755' }}>
+            LINE 登入
+          </button>
+        )}
+        <div className="flex gap-2">
+          <button onClick={() => router.push('/leaderboard')} className="p-2 rounded-xl bg-white border border-gray-200 text-xl hover:shadow-sm">🏆</button>
+          <button onClick={() => router.push('/prizes')} className="p-2 rounded-xl bg-white border border-gray-200 text-xl hover:shadow-sm">🎁</button>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="text-center w-full max-w-2xl">
