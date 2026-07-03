@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGame } from '@/context/GameContext'
 import { SessionSummary } from '@/components/results/SessionSummary'
 import { ResultStat } from '@/components/results/ResultStat'
 import { MODE_LABELS } from '@/lib/constants'
 import { formatMs } from '@/lib/gameLogic'
+import { saveGameSession } from '@/lib/saveSession'
 
 export default function ResultsPage() {
   const { state, dispatch } = useGame()
@@ -18,6 +19,22 @@ export default function ResultsPage() {
       router.replace('/')
     }
   }, [state.stats, state.session, router])
+
+  // Save the completed session to the backend exactly once (for therapist dashboard)
+  const savedRef = useRef(false)
+  useEffect(() => {
+    if (savedRef.current) return
+    if (!state.stats || !state.session) return
+    savedRef.current = true
+    void saveGameSession({
+      game_type: 'grasp-place',
+      difficulty: 'default',
+      score: state.stats.successCount,
+      hits: state.stats.successCount,
+      misses: state.stats.failCount,
+      duration_secs: Math.round(state.stats.totalDuration / 1000),
+    })
+  }, [state.stats, state.session])
 
   if (!state.stats || !state.session) return null
 

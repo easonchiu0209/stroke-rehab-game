@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 
 interface Achievement {
   id:          string
@@ -26,8 +25,19 @@ interface GameSession {
 }
 
 const GAME_NAMES: Record<string, string> = {
-  'whack-mole':  '復能打地鼠',
-  'slash-fruit': '復能切切樂',
+  'whack-mole':    '復能打地鼠',
+  'slash-fruit':   '復能切切樂',
+  'farm':          '復能開心農場',
+  'space-shooter': '復能太空射擊',
+  'fishing-king':  '復能釣魚王',
+  'aquarium':      '復能水族箱',
+  'touch-collect': '碰點收集',
+  'wipe-trace':    '擦拭軌跡',
+  'grasp-place':   '抓取放置',
+  'farm-harvest':  '復能小農場',
+  'pet-pat':       '復能毛小孩',
+  'color-island':  '彩球復能島',
+  'kitchen-catch': '復能小廚房',
 }
 
 export default function ProfilePage() {
@@ -38,22 +48,31 @@ export default function ProfilePage() {
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([])
   const [sessions, setSessions]           = useState<GameSession[]>([])
   const [loading, setLoading]             = useState(true)
+  const [nickname, setNickname]           = useState('')
+  const [savedNick, setSavedNick]         = useState(false)
+
+  async function saveNickname() {
+    await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname }) })
+    setSavedNick(true); setTimeout(() => setSavedNick(false), 2000)
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') { signIn('line'); return }
     if (!session?.user?.id) return
 
-    Promise.all([
-      supabase.from('achievements').select('*'),
-      supabase.from('user_achievements').select('achievement_id, earned_at').eq('user_id', session.user.id),
-      supabase.from('game_sessions').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(20),
-    ]).then(([allAch, earnedAch, gameSess]) => {
-      const earnedMap = new Map((earnedAch.data ?? []).map((e: { achievement_id: string; earned_at: string }) => [e.achievement_id, e.earned_at]))
-      setAllAchievements(allAch.data ?? [])
-      setAchievements((allAch.data ?? []).filter((a: Achievement) => earnedMap.has(a.id)).map((a: Achievement) => ({ ...a, earned_at: earnedMap.get(a.id) })))
-      setSessions(gameSess.data ?? [])
+    fetch('/api/profile').then(r => r.json()).then((d: {
+      achievements: Achievement[]
+      earned: { achievement_id: string; earned_at: string }[]
+      sessions: GameSession[]
+      nickname: string | null
+    }) => {
+      const earnedMap = new Map((d.earned ?? []).map(e => [e.achievement_id, e.earned_at]))
+      setAllAchievements(d.achievements ?? [])
+      setAchievements((d.achievements ?? []).filter(a => earnedMap.has(a.id)).map(a => ({ ...a, earned_at: earnedMap.get(a.id) })))
+      setSessions(d.sessions ?? [])
+      setNickname(d.nickname ?? '')
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
   }, [session, status])
 
   if (status === 'loading' || loading) {
@@ -84,6 +103,17 @@ export default function ProfilePage() {
           <p className="text-purple-600 font-bold text-lg">{session.user.totalPoints.toLocaleString()} 積分</p>
         </div>
         <button onClick={() => signOut()} className="text-sm text-gray-400 hover:text-gray-600">登出</button>
+      </div>
+
+      {/* Nickname */}
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-sm p-4">
+        <p className="font-bold text-gray-700 mb-1">🙈 社群暱稱</p>
+        <p className="text-xs text-gray-400 mb-3">設定後，你在<strong>社群貼文</strong>與<strong>排行榜</strong>會顯示暱稱，不會露出 LINE 名字。（留空＝用 LINE 名字）</p>
+        <div className="flex gap-2">
+          <input value={nickname} onChange={e => setNickname(e.target.value)} maxLength={20}
+            placeholder="輸入暱稱…" className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 outline-none text-gray-800" />
+          <button onClick={saveNickname} className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold active:scale-95">{savedNick ? '已儲存 ✓' : '儲存'}</button>
+        </div>
       </div>
 
       {/* Stats */}

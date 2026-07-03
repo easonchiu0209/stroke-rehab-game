@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { supabaseAdmin } from '@/lib/supabase'
+
+// 確認呼叫者是治療師
+async function requireTherapist() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false as const, status: 401 }
+  const { data } = await supabaseAdmin.from('users').select('role').eq('id', session.user.id).single()
+  if (data?.role !== 'therapist') return { ok: false as const, status: 403 }
+  return { ok: true as const, userId: session.user.id }
+}
+
+export async function GET(req: NextRequest) {
+  const auth = await requireTherapist()
+  if (!auth.ok) return NextResponse.json({ error: 'forbidden' }, { status: auth.status })
+
+  const userId = req.nextUrl.searchParams.get('userId')
+
+  // ── 單一個案的所有訓練記錄 ────────────────────────────────
+  if (userId) {
+    const [{ data: patient }, { data: sessions }] = await Promise.all([
+      supabaseAdmin.from('users').select('id, display_name, picture_url, total_points, created_at').eq('id', userId).single(),
+      supabaseAdmin.from('game_sessions').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
+    ])
+    return NextResponse.json({ patient, sessions: sessions ?? [] })
+  }
+
+  // ── 個案清單 + 摘要 ───────────────────────────────────────
+  const [{ data: users }, { data: sessions }] = await Promise.all([
+    supabaseAdmin.from('users').select('id, display_name, picture_url, total_points, role, created_at'),
+    supabaseAdmin.from('game_sessions').select('user_id, created_at, accuracy'),
+  ])
+
+  const byUser = new Map<string, { count: number; last: string; accSum: number }>()
+  for (const s of sessions ?? []) {
+    const e = byUser.get(s.user_id) ?? { count: 0, last: '', accSum: 0 }
+    e.count++; e.accSum += s.accuracy ?? 0
+    if (!e.last || s.created_at > e.last) e.last = s.created_at
+    byUser.set(s.user_id, e)
+  }
+
+  const patients = (users ?? [])
+    .filter(u => u.role !== 'therapist')   // 個案清單不含治療師自己（但治療師若也有訓練仍可在自己帳號看）
+    .map(u => {
+      const e = byUser.get(u.id)
+      return {
+        id: u.id, display_name: u.display_name, picture_url: u.picture_url,
+        total_points: u.total_points,
+        session_count: e?.count ?? 0,
+        last_active: e?.last ?? null,
+        avg_accuracy: e && e.count ? Math.round(e.accSum / e.count) : null,
+      }
+    })
+    .sort((a, b) => (b.last_active ?? '').localeCompare(a.last_active ?? ''))
+
+  // 也回傳治療師自己（方便自測），放最後
+  const me = (users ?? []).find(u => u.id === auth.userId)
+  if (me && me.role === 'therapist') {
+    const e = byUser.get(me.id)
+    patients.push({
+      id: me.id, display_name: `${me.display_name}（我）`, picture_url: me.picture_url,
+      total_points: me.total_points, session_count: e?.count ?? 0,
+      last_active: e?.last ?? null, avg_accuracy: e && e.count ? Math.round(e.accSum / e.count) : null,
+    })
+  }
+
+  return NextResponse.json({ patients })
+}

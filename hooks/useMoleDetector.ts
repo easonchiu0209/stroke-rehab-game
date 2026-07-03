@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { HandLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision'
+import { recordTrajectory } from '@/lib/saveSession'
+import { getCalib, applyCalib } from '@/lib/calibration'
 
 export interface MoleTarget {
   id:        number
@@ -47,6 +49,9 @@ export function useMoleDetector({
 
   const rafRef           = useRef<number | null>(null)
   const lastTimestampRef = useRef(-1)
+  const trajRef          = useRef<number[][]>([])
+  const trajStartRef     = useRef(-1)
+  const lastSampleRef    = useRef(-1)
 
   // Expose a setter so the page can update active moles
   function setMoles(moles: MoleTarget[]) {
@@ -68,6 +73,9 @@ export function useMoleDetector({
     }
 
     hitIdsRef.current.clear()
+    trajRef.current = []; trajStartRef.current = -1; lastSampleRef.current = -1
+    recordTrajectory(trajRef.current)
+    const cal = getCalib()
 
     function loop() {
       const video  = videoRef.current
@@ -107,18 +115,26 @@ export function useMoleDetector({
       }
 
       const wrist = results.landmarks[0][0] as NormalizedLandmark
-      // Convert to display-space (apply mirror)
-      const wristNxDisplay = isMirrored ? 1 - wrist.x : wrist.x
-      const wristNy        = wrist.y
+      // 套用鏡頭校正（原始座標）後再轉 display-space
+      const [wx, wy] = applyCalib(wrist.x, wrist.y, cal)
+      const wristNxDisplay = isMirrored ? 1 - wx : wx
+      const wristNy        = wy
 
       setHandDetected(true)
       setHandNxDisplay(wristNxDisplay)
       setHandNy(wristNy)
 
+      // 約 10Hz 取樣手部軌跡
+      if (trajStartRef.current < 0) trajStartRef.current = now
+      if (now - lastSampleRef.current >= 100) {
+        lastSampleRef.current = now
+        trajRef.current.push([Math.round(now - trajStartRef.current), Math.round(wristNxDisplay * 1000) / 1000, Math.round(wristNy * 1000) / 1000])
+      }
+
       // Draw wrist indicator on canvas (canvas is CSS-mirrored, so use raw coords)
       if (ctx) {
-        const cx = wrist.x * canvas.width
-        const cy = wrist.y * canvas.height
+        const cx = wx * canvas.width
+        const cy = wy * canvas.height
         ctx.beginPath()
         ctx.arc(cx, cy, 18, 0, Math.PI * 2)
         ctx.fillStyle = 'rgba(255,214,0,0.35)'
@@ -151,5 +167,5 @@ export function useMoleDetector({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, landmarker, videoRef, canvasRef])
 
-  return { handDetected, handNxDisplay, handNy, setMoles }
+  return { handDetected, handNxDisplay, handNy, setMoles, getTrajectory: () => trajRef.current }
 }

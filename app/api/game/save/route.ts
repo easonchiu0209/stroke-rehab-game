@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
+import { awardDailyBonuses } from '@/lib/serverPoints'
+import { saveMotionData } from '@/lib/serverMotion'
 
 // Points formula
 function calcPoints(score: number, accuracy: number, difficulty: string): number {
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
   const {
     game_type, difficulty, score, hits, misses,
     avg_reaction_ms, highest_reach, left_hits, right_hits, center_hits, duration_secs,
+    zone_heatmap, trajectory,
   } = body
 
   const total    = hits + misses
@@ -81,12 +84,17 @@ export async function POST(req: NextRequest) {
       right_hits:  right_hits  ?? 0,
       center_hits: center_hits ?? 0,
       duration_secs: duration_secs ?? 60,
+      zone_heatmap: zone_heatmap ?? null,
+      trajectory: trajectory ?? null,
       points_earned: points,
     })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 動作錄製 + 代償事件 + 品質指標（Phase 1 AI 基礎建設）
+  await saveMotionData(session.user.id, savedSession.id, body, trajectory ?? null)
 
   // Award points
   await supabaseAdmin.from('point_logs').insert({
@@ -101,5 +109,8 @@ export async function POST(req: NextRequest) {
   // Check achievements
   const newAchievements = await checkAchievements(session.user.id, savedSession)
 
-  return NextResponse.json({ points_earned: points, new_achievements: newAchievements })
+  // 每日/連續天數額外獎勵
+  const daily = await awardDailyBonuses(session.user.id)
+
+  return NextResponse.json({ points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak })
 }

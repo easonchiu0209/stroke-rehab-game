@@ -4,12 +4,12 @@ import { SessionProvider } from '@/components/SessionProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '上肢功能復健訓練',
-  description: '中風後上肢功能性復健訓練遊戲 — 近距離抓取與左右移動訓練',
+  title: 'LifeMotionXR',
+  description: 'LifeMotionXR — 中風後上肢功能性復健訓練遊戲平台',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '復健訓練',
+    title: 'LifeMotionXR',
   },
 }
 

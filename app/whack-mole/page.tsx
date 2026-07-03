@@ -6,6 +6,11 @@ import { useHandLandmarker } from '@/hooks/useHandLandmarker'
 import { useCamera } from '@/hooks/useCamera'
 import { useMoleDetector, type MoleTarget } from '@/hooks/useMoleDetector'
 import type { HandLandmarker } from '@mediapipe/tasks-vision'
+import { saveGameSession, computeZones } from '@/lib/saveSession'
+import { usePoseMonitor } from '@/hooks/usePoseMonitor'
+import CompensationHint from '@/components/game/CompensationHint'
+import { feedbackHit, speak } from '@/lib/feedback'
+import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -91,6 +96,12 @@ function PlayingView({
 
   useEffect(() => { gamePhaseRef.current = gamePhase }, [gamePhase])
 
+  // 背景 Pose 監測：動作錄製 + 代償偵測（倒數階段收基準線）
+  const { hint: poseHint } = usePoseMonitor({
+    videoRef, isMirrored,
+    active: gamePhase === 'countdown' || gamePhase === 'playing',
+  })
+
   // Camera
   useEffect(() => {
     startCamera('user')
@@ -111,6 +122,8 @@ function PlayingView({
     // Cancel expiry timer
     const t = moleTimersRef.current.get(moleId)
     if (t) { clearTimeout(t); moleTimersRef.current.delete(moleId) }
+
+    feedbackHit()
 
     hitCountRef.current += 1
     setHitCount((n) => n + 1)
@@ -270,9 +283,15 @@ function PlayingView({
       {/* ── Game area ────────────────────────────────────────────── */}
       <div ref={areaRef} className="relative flex-1 overflow-hidden bg-black">
 
+        {/* Themed background behind the camera */}
+        <SceneBack theme="meadow" />
+
         {/* Camera feed + canvas overlay */}
-        <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }} />
+        <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined, opacity: 0 }} />
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }} />
+
+        {/* 代償提醒（聳肩/前傾/側彎） */}
+        <CompensationHint hint={poseHint} />
 
         {/* Mole targets */}
         {moles.map((mole) => {
@@ -363,6 +382,9 @@ function PlayingView({
             <p className="text-lg mt-6 opacity-70">移動手部觸碰目標</p>
           </div>
         )}
+
+        {/* Edge decorations + vignette on top */}
+        <SceneFront theme="meadow" />
       </div>
 
       {/* Pulse keyframe — injected once */}
@@ -639,20 +661,49 @@ export default function WhackMolePage() {
   const [gameResults,  setGameResults]  = useState<GameResults | null>(null)
 
   const { landmarker, isLoading, error: landmarkerError } = useHandLandmarker()
+  const spokeResultRef = useRef(false)
 
   const handleStart = useCallback((d: Difficulty) => {
     setDifficulty(d)
     setPagePhase('playing')
+    speak('開始囉，加油！')
   }, [])
 
   const handleGameEnd = useCallback((results: GameResults) => {
     setGameResults(results)
     setPagePhase('results')
+
+    // 結算語音鼓勵（每場僅播一次）
+    if (!spokeResultRef.current) {
+      spokeResultRef.current = true
+      const attempts = results.hits + results.misses
+      const accuracy = attempts > 0 ? Math.round((results.hits / attempts) * 100) : 0
+      speak(accuracy >= 80 ? '太厲害了，做得很好！' : '完成囉，繼續加油！')
+    }
+
+    // 存一場訓練數據給治療師後台分析（每場僅呼叫一次；未登入會被靜默忽略）
+    const successHits = results.hitRecords.filter((r) => r.success)
+    const avgReactionMs =
+      successHits.length > 0
+        ? Math.round(successHits.reduce((s, r) => s + r.reactionMs, 0) / successHits.length)
+        : null
+    saveGameSession({
+      game_type:       'whack-mole',
+      difficulty:      results.difficulty,
+      score:           results.hits * 10,
+      hits:            results.hits,
+      misses:          results.misses,
+      avg_reaction_ms: avgReactionMs,
+      duration_secs:   60,
+      ...computeZones(successHits.map((r) => ({ nx: r.nx, ny: r.ny }))),
+    })
   }, [])
 
   const handleReplay = useCallback(() => {
     setGameResults(null)
     setPagePhase('playing')
+    spokeResultRef.current = false
+    speak('開始囉，加油！')
   }, [])
 
   if (pagePhase === 'config') {

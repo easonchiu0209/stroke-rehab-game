@@ -28,6 +28,7 @@ export default function PrizesPage() {
   const [loading,   setLoading]   = useState(true)
   const [redeeming, setRedeeming] = useState<string | null>(null)
   const [toast,     setToast]     = useState<{ msg: string; ok: boolean } | null>(null)
+  const [ptsOverride, setPtsOverride] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/prizes')
@@ -40,10 +41,21 @@ export default function PrizesPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  const userPoints = ptsOverride ?? (session?.user.totalPoints ?? 0)
+
+  const handleExchange = async (to: 'coins' | 'pearls', points: number) => {
+    if (!session) { signIn('line'); return }
+    if (userPoints < points) { showToast(`積分不足（需 ${points}）`, false); return }
+    const res = await fetch('/api/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, points }) })
+    const d = await res.json()
+    if (res.ok) { setPtsOverride(d.remainingPoints); showToast(`✅ 換得 ${d.gained} ${to === 'coins' ? '🪙 農場金幣' : '🫧 水族箱珍珠'}`, true) }
+    else showToast(d.error ?? '兌換失敗', false)
+  }
+
   const handleRedeem = async (prize: Prize) => {
     if (!session) { signIn('line'); return }
-    if (session.user.totalPoints < prize.points_cost) {
-      showToast(`積分不足（需要 ${prize.points_cost}，你有 ${session.user.totalPoints}）`, false)
+    if (userPoints < prize.points_cost) {
+      showToast(`積分不足（需要 ${prize.points_cost}，你有 ${userPoints}）`, false)
       return
     }
     setRedeeming(prize.id)
@@ -56,7 +68,7 @@ export default function PrizesPage() {
       const data = await res.json()
       if (res.ok) {
         showToast(`🎉 兌換成功！工作人員將確認後發送「${prize.name}」`, true)
-        router.refresh()
+        setPtsOverride(userPoints - prize.points_cost)
       } else {
         showToast(data.error ?? '兌換失敗', false)
       }
@@ -64,8 +76,6 @@ export default function PrizesPage() {
       setRedeeming(null)
     }
   }
-
-  const userPoints = session?.user.totalPoints ?? 0
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 flex flex-col items-center px-5 py-10 gap-6">
@@ -95,6 +105,28 @@ export default function PrizesPage() {
         >
           LINE 登入後兌換
         </button>
+      )}
+
+      {/* 積分兌換遊戲幣 */}
+      {session && (
+        <div className="w-full max-w-lg bg-white rounded-2xl border border-amber-200 p-5 shadow-sm">
+          <p className="font-bold text-gray-800 mb-1">🔄 積分兌換遊戲幣</p>
+          <p className="text-xs text-gray-400 mb-3">用平台積分換農場金幣或水族箱珍珠（單向，不可換回積分）。金幣 1:1、珍珠 2:1。</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { to: 'coins' as const, pts: 50, label: '🪙 50 金幣', cost: 50 },
+              { to: 'coins' as const, pts: 100, label: '🪙 100 金幣', cost: 100 },
+              { to: 'pearls' as const, pts: 50, label: '🫧 25 珍珠', cost: 50 },
+              { to: 'pearls' as const, pts: 100, label: '🫧 50 珍珠', cost: 100 },
+            ].map((b, i) => (
+              <button key={i} onClick={() => handleExchange(b.to, b.pts)} disabled={userPoints < b.cost}
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl border-2 border-amber-100 bg-amber-50 disabled:opacity-40 active:scale-95">
+                <span className="font-bold text-gray-700">{b.label}</span>
+                <span className="text-sm text-amber-600 font-semibold">{b.cost}分</span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {loading ? (

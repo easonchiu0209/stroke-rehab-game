@@ -7,7 +7,7 @@ export default function LoginPage() {
     <main className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50 flex flex-col items-center justify-center px-6 gap-8">
       <div className="text-center">
         <div className="text-7xl mb-4">🏥</div>
-        <h1 className="text-4xl font-extrabold text-gray-900">上肢功能復健訓練</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900">LifeMotionXR</h1>
         <p className="text-gray-500 mt-2 text-lg">登入以記錄訓練進度、累積積分、兌換獎品</p>
       </div>
 

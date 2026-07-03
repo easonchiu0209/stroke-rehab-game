@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { HandLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision'
 import type { TcDot } from '@/lib/touchCollectConstants'
 import { drawTouchCollectOverlay } from '@/lib/drawUtils'
+import { getCalib, applyCalib } from '@/lib/calibration'
 
 interface UseTouchDetectorOptions {
   landmarker:    HandLandmarker | null
@@ -78,6 +79,7 @@ export function useTouchDetector({
     }
 
     hasTriggeredRef.current = false
+    const cal = getCalib()
 
     function loop() {
       const video  = videoRef.current
@@ -138,8 +140,11 @@ export function useTouchDetector({
 
       if (results.landmarks.length > 0) {
         const wrist  = results.landmarks[0][0] as NormalizedLandmark
-        const wristNx = isMirrored ? 1 - wrist.x : wrist.x
-        const wristNy = wrist.y
+        // 套用校正並寫回，讓命中判定與覆蓋層繪製一致
+        const [wcx, wcy] = applyCalib(wrist.x, wrist.y, cal)
+        wrist.x = wcx; wrist.y = wcy
+        const wristNx = isMirrored ? 1 - wcx : wcx
+        const wristNy = wcy
 
         setHandDetected(true)
 

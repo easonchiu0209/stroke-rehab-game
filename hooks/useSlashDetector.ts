@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { HandLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision'
+import { recordTrajectory } from '@/lib/saveSession'
+import { getCalib, applyCalib } from '@/lib/calibration'
 
 export interface SlashTarget {
   id:          number
@@ -54,6 +56,9 @@ export function useSlashDetector({
 
   const rafRef           = useRef<number | null>(null)
   const lastTimestampRef = useRef(-1)
+  const trajRef          = useRef<number[][]>([])
+  const trajStartRef     = useRef(-1)
+  const lastSampleRef    = useRef(-1)
 
   function setTargets(targets: SlashTarget[]) {
     targetsRef.current = targets
@@ -72,6 +77,9 @@ export function useSlashDetector({
 
     hitIdsRef.current.clear()
     expiredIdsRef.current.clear()
+    trajRef.current = []; trajStartRef.current = -1; lastSampleRef.current = -1
+    recordTrajectory(trajRef.current)
+    const cal = getCalib()
 
     function loop() {
       const video  = videoRef.current
@@ -153,15 +161,23 @@ export function useSlashDetector({
       }
 
       const wrist: NormalizedLandmark = results.landmarks[0][0]
-      const wristNxDisplay = isMirrored ? 1 - wrist.x : wrist.x
-      const wristNy        = wrist.y
+      const [wx, wy] = applyCalib(wrist.x, wrist.y, cal)
+      const wristNxDisplay = isMirrored ? 1 - wx : wx
+      const wristNy        = wy
 
       setHandDetected(true)
 
+      // 約 10Hz 取樣手部軌跡
+      if (trajStartRef.current < 0) trajStartRef.current = now
+      if (now - lastSampleRef.current >= 100) {
+        lastSampleRef.current = now
+        trajRef.current.push([Math.round(now - trajStartRef.current), Math.round(wristNxDisplay * 1000) / 1000, Math.round(wristNy * 1000) / 1000])
+      }
+
       // Draw wrist cursor (raw coords, CSS handles mirror)
       if (ctx) {
-        const cx = wrist.x * canvas.width
-        const cy = wrist.y * canvas.height
+        const cx = wx * canvas.width
+        const cy = wy * canvas.height
         ctx.beginPath()
         ctx.arc(cx, cy, 18 * scale, 0, Math.PI * 2)
         ctx.fillStyle   = 'rgba(255,255,255,0.25)'
@@ -192,5 +208,5 @@ export function useSlashDetector({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, landmarker, videoRef, canvasRef])
 
-  return { handDetected, setTargets }
+  return { handDetected, setTargets, getTrajectory: () => trajRef.current }
 }

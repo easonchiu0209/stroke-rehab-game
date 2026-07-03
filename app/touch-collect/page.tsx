@@ -13,6 +13,9 @@ import {
   type TcLevelConfig,
 } from '@/lib/touchCollectConstants'
 import type { HandLandmarker } from '@mediapipe/tasks-vision'
+import { saveGameSession } from '@/lib/saveSession'
+import { feedbackHit, feedbackMiss, feedbackCombo, speak } from '@/lib/feedback'
+import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -128,12 +131,13 @@ function PlayingView({
 
       {/* ── Camera + Canvas ─────────────────────────────────────── */}
       <div className="flex-1 relative overflow-hidden">
+        <SceneBack theme="calm" />
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
           playsInline
           muted
-          style={isMirrored ? { transform: 'scaleX(-1)' } : undefined}
+          style={isMirrored ? { transform: 'scaleX(-1)', opacity: 0 } : { opacity: 0 }}
         />
         <canvas
           ref={canvasRef}
@@ -226,6 +230,9 @@ function PlayingView({
             </div>
           </div>
         )}
+
+        {/* Themed scene overlay (top decorations + vignette) */}
+        <SceneFront theme="calm" />
       </div>
 
       {/* ── Bottom bar ──────────────────────────────────────────── */}
@@ -268,12 +275,53 @@ export default function TouchCollectPage() {
   const [dotStartTime,  setDotStartTime]  = useState(0)
   const [totalTimeMs,   setTotalTimeMs]   = useState(0)
 
+  const savedRef = useRef(false)
+  const comboRef = useRef(0)
+  const missStreakRef = useRef(0)
+
   const config = TC_LEVEL_CONFIGS[difficulty]
+
+  // ── Save session to backend exactly once when the game finishes ────
+  useEffect(() => {
+    if (phase !== 'results' || savedRef.current) return
+    savedRef.current = true
+
+    const hits   = dotResults.filter((r) => r.collected).length
+    const misses = dotResults.length - hits
+    const collectedTimes = dotResults.filter((r) => r.collected)
+    const avgReactionMs = collectedTimes.length > 0
+      ? Math.round(collectedTimes.reduce((s, r) => s + r.timeMs, 0) / collectedTimes.length)
+      : null
+    // 此遊戲未記錄每次命中的 nx/ny 座標，故省略 computeZones
+    saveGameSession({
+      game_type:       'touch-collect',
+      difficulty,
+      score:           hits * 10,
+      hits,
+      misses,
+      avg_reaction_ms: avgReactionMs,
+      duration_secs:   Math.round(totalTimeMs / 1000),
+    })
+
+    const acc = dotResults.length > 0 ? hits / dotResults.length : 0
+    speak(acc >= 0.8 ? '太厲害了，做得很好！' : '完成囉，繼續加油！')
+  }, [phase, dotResults, difficulty, totalTimeMs])
+
+  // 重新開始時重置存檔保護，讓下一場可再次儲存
+  useEffect(() => {
+    if (phase === 'config') savedRef.current = false
+  }, [phase])
 
   // ── Game callbacks ────────────────────────────────────────────────
   const handleCollect = useCallback(() => {
     const now        = performance.now()
     const timeForDot = now - dotStartTime
+
+    // 即時回饋：命中音＋震動，連續命中再給 combo
+    comboRef.current += 1
+    missStreakRef.current = 0
+    if (comboRef.current >= 3 && comboRef.current % 3 === 0) feedbackCombo(comboRef.current)
+    else feedbackHit()
 
     setDotResults((prev) => [...prev, { collected: true, timeMs: timeForDot }])
     setDots((prev) => prev.map((d, i) => i === targetIndex ? { ...d, collected: true } : d))
@@ -290,6 +338,12 @@ export default function TouchCollectPage() {
 
   const handleTimeout = useCallback(() => {
     const now = performance.now()
+
+    // 即時回饋：未命中低沉音，連續錯誤給語音鼓勵
+    comboRef.current = 0
+    missStreakRef.current += 1
+    feedbackMiss()
+    if (missStreakRef.current >= 2) speak('沒關係，再試一次！')
 
     setDotResults((prev) => [
       ...prev,
@@ -316,6 +370,9 @@ export default function TouchCollectPage() {
     setGameStartTime(now)
     setDotStartTime(now)
     setTotalTimeMs(0)
+    comboRef.current = 0
+    missStreakRef.current = 0
+    speak('開始囉，加油！')
     setPhase('playing')
   }
 

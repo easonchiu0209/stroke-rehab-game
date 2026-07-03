@@ -6,6 +6,11 @@ import { useHandLandmarker } from '@/hooks/useHandLandmarker'
 import { useCamera } from '@/hooks/useCamera'
 import { useSlashDetector } from '@/hooks/useSlashDetector'
 import type { SlashTarget } from '@/hooks/useSlashDetector'
+import { saveGameSession, computeZones } from '@/lib/saveSession'
+import { usePoseMonitor } from '@/hooks/usePoseMonitor'
+import CompensationHint from '@/components/game/CompensationHint'
+import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
+import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
 // ── Types & config ────────────────────────────────────────────────────────────
 
@@ -195,7 +200,7 @@ function PlayingView({
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const { landmarker }                         = useHandLandmarker()
-  const { isReady: cameraReady, startCamera, stopCamera } = useCamera(videoRef)
+  const { isReady: cameraReady, startCamera, stopCamera, isMirrored } = useCamera(videoRef)
   const isActive = cameraReady && !!landmarker
 
   const [phase, setPhase]       = useState<'countdown' | 'playing' | 'ended'>('countdown')
@@ -222,7 +227,21 @@ function PlayingView({
   useEffect(() => { phaseRef.current = phase }, [phase])
   useEffect(() => { targetsRef.current = targets }, [targets])
 
-  useEffect(() => { startCamera(); return () => stopCamera() }, []) // eslint-disable-line
+  // 背景 Pose 監測：動作錄製 + 代償偵測（倒數階段收基準線）
+  const { hint: poseHint } = usePoseMonitor({
+    videoRef, isMirrored,
+    active: phase === 'countdown' || phase === 'playing',
+  })
+
+  useEffect(() => { startCamera('user'); return () => stopCamera() }, []) // eslint-disable-line
+
+  // Speak start prompt once
+  const startSpokenRef = useRef(false)
+  useEffect(() => {
+    if (startSpokenRef.current) return
+    startSpokenRef.current = true
+    speak('開始囉，加油！')
+  }, [])
 
   // Countdown
   useEffect(() => {
@@ -260,6 +279,7 @@ function PlayingView({
     if (phase !== 'ended' || savedRef.current) return
     savedRef.current = true
     if (spawnRef.current) clearInterval(spawnRef.current)
+    speak(hitCountRef.current >= 8 ? '太棒了，表現很好！' : '辛苦了，下次再加油！')
     setTimeout(() => onEnd(hitCountRef.current, missCountRef.current, bombHitsRef.current, recordsRef.current), 600)
   }, [phase, onEnd])
 
@@ -269,11 +289,13 @@ function PlayingView({
     if (phaseRef.current !== 'playing') return
     setTargets(prev => prev.filter(t => t.id !== id))
     if (type === 'bomb') {
+      feedbackMiss()
       bombHitsRef.current++
       setBombHits(n => n + 1)
       scoreRef.current = Math.max(0, scoreRef.current - 5)
       setScore(scoreRef.current)
     } else {
+      feedbackHit()
       hitCountRef.current++
       scoreRef.current += 10
       setHitCount(n => n + 1)
@@ -294,7 +316,7 @@ function PlayingView({
     videoRef,
     canvasRef,
     isActive,
-    isMirrored: true,
+    isMirrored,
     onHit:      handleHit,
     onExpired:  handleExpired,
   })
@@ -352,17 +374,21 @@ function PlayingView({
 
       {/* Camera + canvas */}
       <div className="relative flex-1 overflow-hidden bg-black">
+        <SceneBack theme="orchard" />
         <video
           ref={videoRef}
           autoPlay playsInline muted
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ transform: 'scaleX(-1)' }}
+          style={{ transform: isMirrored ? 'scaleX(-1)' : undefined, opacity: 0 }}
         />
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ transform: 'scaleX(-1)' }}
+          style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }}
         />
+
+        {/* 代償提醒（聳肩/前傾/側彎） */}
+        <CompensationHint hint={poseHint} />
 
         {/* Countdown overlay */}
         {phase === 'countdown' && (
@@ -390,6 +416,8 @@ function PlayingView({
             命中率 {accuracy}%
           </div>
         )}
+
+        <SceneFront theme="orchard" />
       </div>
     </div>
   )
@@ -548,12 +576,32 @@ export default function SlashFruitPage() {
     hits: number; misses: number; bombHits: number; records: HitRecord[]
   } | null>(null)
 
+  const savedRef = useRef(false)
+
   const handleEnd = useCallback((
     hits: number, misses: number, bombHits: number, records: HitRecord[],
   ) => {
     setResults({ hits, misses, bombHits, records })
     setPhase('ended')
-  }, [])
+
+    if (!savedRef.current) {
+      savedRef.current = true
+      const fruitRecords = records.filter(r => r.type === 'fruit')
+      const avgReactionMs = fruitRecords.length > 0
+        ? Math.round(fruitRecords.reduce((s, r) => s + r.reactionMs, 0) / fruitRecords.length)
+        : null
+      void saveGameSession({
+        game_type: 'slash-fruit',
+        difficulty,
+        score: Math.max(0, hits * 10 - bombHits * 5),
+        hits,
+        misses,
+        avg_reaction_ms: avgReactionMs,
+        duration_secs: 60,
+        ...computeZones(fruitRecords.map(r => ({ nx: r.nx, ny: r.ny }))),
+      })
+    }
+  }, [difficulty])
 
   if (phase === 'config') {
     return (

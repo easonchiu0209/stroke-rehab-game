@@ -15,6 +15,7 @@ import {
   type WtRoundResult,
 } from '@/lib/wipeTraceConstants'
 import type { HandLandmarker } from '@mediapipe/tasks-vision'
+import { saveGameSession } from '@/lib/saveSession'
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -255,6 +256,8 @@ export default function WipeTracePage() {
   const roundStartTimeRef = useRef(0)
   // progressRef mirrors `progress` state so callbacks can read current value without stale closure
   const progressRef = useRef(0)
+  // 確保每場遊戲只存檔一次
+  const savedRef = useRef(false)
 
   const config      = WT_LEVEL_CONFIGS[difficulty]
   const currentPath = sessionPaths[currentRound] ?? WT_PATHS['horizontal']
@@ -270,6 +273,7 @@ export default function WipeTracePage() {
     setTotalTimeMs(0)
     gameStartTimeRef.current  = now
     roundStartTimeRef.current = now
+    savedRef.current = false
     setPhase('playing')
   }
 
@@ -342,6 +346,27 @@ export default function WipeTracePage() {
     setCurrentRound(0)
     setProgress(0)
   }
+
+  // ── 結束時存檔（給治療師後台分析）——每場僅一次 ─────────────────
+  useEffect(() => {
+    if (phase !== 'results' || savedRef.current) return
+    savedRef.current = true
+
+    const completed = roundResults.filter((r) => r.completed).length
+    const avgRate   = roundResults.length > 0
+      ? roundResults.reduce((s, r) => s + r.completionRate, 0) / roundResults.length
+      : 0
+
+    // 軌跡遊戲於頁面層級沒有逐點 nx/ny 座標，故省略 computeZones / 反應時間
+    saveGameSession({
+      game_type:     'wipe-trace',
+      difficulty,
+      score:         Math.round(avgRate * 100),
+      hits:          completed,
+      misses:        config.totalRounds - completed,
+      duration_secs: Math.round(totalTimeMs / 1000),
+    })
+  }, [phase, roundResults, difficulty, config.totalRounds, totalTimeMs])
 
   // ════════════════════════════════════════════════════════════════
   // Phase: CONFIG
