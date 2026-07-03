@@ -13,6 +13,7 @@ import { feedbackHit, speak } from '@/lib/feedback'
 import { takeTrajectory, takePose } from '@/lib/saveSession'
 import { usePoseMonitor } from '@/hooks/usePoseMonitor'
 import CompensationHint from '@/components/game/CompensationHint'
+import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 
 // ── 照顧 session 設定（單一、長者友善：大目標、顯示久）─────────────────
 const TEND = {
@@ -48,6 +49,7 @@ function TendingView({
 }) {
   const videoRef  = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const juiceRef  = useRef<JuiceHandle>(null)
 
   const { isReady, error: cameraError, startCamera, stopCamera, isMirrored } = useCamera(videoRef)
 
@@ -116,10 +118,16 @@ function TendingView({
       comboRef.current += 1
       setCombo(comboRef.current)
       pushFloat(nx, ny, `＋${meta.reward} 🪙`, false)
+      juiceRef.current?.burst(nx, ny, {
+        colors: ['#FFD600', '#FFC107', '#8BC34A'],
+        emojis: ['✨', '🪙'],
+        count: Math.min(22, 12 + comboRef.current * 2),  // combo 越高爆越大
+      })
     } else if (meta?.type === 'pest') {
       pestsRef.current += 1
       coinsRef.current += 1
       pushFloat(nx, ny, `趕走！＋1`, true)
+      juiceRef.current?.burst(nx, ny, { colors: ['#9e9e9e', '#a5d6a7'], emojis: ['💨'], count: 8 })
     }
     setCoins(coinsRef.current)
     setHitIds(prev => new Set(prev).add(id))
@@ -238,6 +246,9 @@ function TendingView({
 
         {/* 代償提醒（聳肩/前傾/側彎） */}
         <CompensationHint hint={poseHint} />
+
+        {/* 命中特效層（粒子/彈跳字/微震） */}
+        <JuiceLayer ref={juiceRef} />
 
         {/* 農場場景疊層 */}
         <div className="absolute inset-0 pointer-events-none" aria-hidden>

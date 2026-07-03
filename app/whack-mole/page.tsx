@@ -9,6 +9,7 @@ import type { HandLandmarker } from '@mediapipe/tasks-vision'
 import { saveGameSession, computeZones } from '@/lib/saveSession'
 import { usePoseMonitor } from '@/hooks/usePoseMonitor'
 import CompensationHint from '@/components/game/CompensationHint'
+import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { feedbackHit, speak } from '@/lib/feedback'
 import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
@@ -72,6 +73,7 @@ function PlayingView({
   const videoRef  = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const areaRef   = useRef<HTMLDivElement>(null)
+  const juiceRef  = useRef<JuiceHandle>(null)
 
   const { isReady, error: cameraError, startCamera, stopCamera, isMirrored } = useCamera(videoRef)
 
@@ -134,6 +136,9 @@ function PlayingView({
       const m = prev.find((x) => x.id === moleId)
       if (m) {
         hitRecordsRef.current.push({ nx: m.nx, ny: m.ny, reactionMs, success: true })
+        juiceRef.current?.burst(m.nx, m.ny)
+        juiceRef.current?.floatText(m.nx, m.ny - 0.06, '+10')
+        juiceRef.current?.shake(0.4)
       }
       return prev
     })
@@ -293,6 +298,9 @@ function PlayingView({
         {/* 代償提醒（聳肩/前傾/側彎） */}
         <CompensationHint hint={poseHint} />
 
+        {/* 命中特效層（粒子/彈跳字/微震） */}
+        <JuiceLayer ref={juiceRef} />
+
         {/* Mole targets */}
         {moles.map((mole) => {
           const isHit = hitMoleIds.has(mole.id)
@@ -316,7 +324,9 @@ function PlayingView({
                 transform:   isHit ? 'scale(1.6)' : 'scale(1)',
                 opacity:     isHit ? 0 : 1,
                 transition:  isHit ? 'transform 0.25s ease-out, opacity 0.25s' : 'none',
-                animation:   isHit ? 'none' : 'molePulse 1.2s ease-in-out infinite',
+                animation:   isHit
+                  ? 'none'
+                  : 'juicePopIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both, molePulse 1.2s ease-in-out 0.35s infinite',
                 display:     'flex',
                 alignItems:  'center',
                 justifyContent: 'center',

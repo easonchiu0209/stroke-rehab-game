@@ -9,6 +9,7 @@ import type { SlashTarget } from '@/hooks/useSlashDetector'
 import { saveGameSession, computeZones } from '@/lib/saveSession'
 import { usePoseMonitor } from '@/hooks/usePoseMonitor'
 import CompensationHint from '@/components/game/CompensationHint'
+import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
 import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
@@ -198,6 +199,7 @@ function PlayingView({
 
   const videoRef  = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const juiceRef  = useRef<JuiceHandle>(null)
 
   const { landmarker }                         = useHandLandmarker()
   const { isReady: cameraReady, startCamera, stopCamera, isMirrored } = useCamera(videoRef)
@@ -294,6 +296,9 @@ function PlayingView({
       setBombHits(n => n + 1)
       scoreRef.current = Math.max(0, scoreRef.current - 5)
       setScore(scoreRef.current)
+      juiceRef.current?.burst(nx, ny, { colors: ['#616161', '#424242', '#9e9e9e'], emojis: ['💨'], count: 10 })
+      juiceRef.current?.floatText(nx, ny - 0.06, '−5', { color: '#ef5350' })
+      juiceRef.current?.shake(1)
     } else {
       feedbackHit()
       hitCountRef.current++
@@ -301,6 +306,9 @@ function PlayingView({
       setHitCount(n => n + 1)
       setScore(scoreRef.current)
       recordsRef.current.push({ nx, ny, reactionMs, type: 'fruit' })
+      juiceRef.current?.burst(nx, ny, { emojis: ['✨', '💧'] })
+      juiceRef.current?.floatText(nx, ny - 0.06, '+10')
+      juiceRef.current?.shake(0.4)
     }
   }, [])
 
@@ -389,6 +397,9 @@ function PlayingView({
 
         {/* 代償提醒（聳肩/前傾/側彎） */}
         <CompensationHint hint={poseHint} />
+
+        {/* 命中特效層（粒子/彈跳字/微震） */}
+        <JuiceLayer ref={juiceRef} />
 
         {/* Countdown overlay */}
         {phase === 'countdown' && (

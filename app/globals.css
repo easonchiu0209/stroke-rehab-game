@@ -34,3 +34,17 @@
     user-select: none;
   }
 }
+
+/* ── Game Juice 共用動畫（目標物出現/消失的擠壓回彈）───────────── */
+@keyframes juicePopIn {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.15); }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+@keyframes juiceSquash {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.25, 0.75); }
+  100% { transform: scale(0); opacity: 0; }
+}
+.juice-pop-in { animation: juicePopIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
