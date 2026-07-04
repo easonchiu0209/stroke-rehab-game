@@ -1,10 +1,12 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
+import DeviceTipBanner from '@/components/shared/DeviceTipBanner'
 
 export default function LoginPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50 flex flex-col items-center justify-center px-6 gap-8">
+      <div className="w-full max-w-sm -mx-3"><DeviceTipBanner /></div>
       <div className="text-center">
         <div className="text-7xl mb-4">🏥</div>
         <h1 className="text-4xl font-extrabold text-gray-900">LifeMotionXR</h1>

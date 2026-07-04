@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signIn } from 'next-auth/react'
+import DeviceTipBanner from '@/components/shared/DeviceTipBanner'
 
 interface GameCardData {
   id: string; emoji: string; title: string; subtitle: string
@@ -99,6 +100,9 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-xl mx-auto px-3 py-3 flex flex-col gap-3">
+
+        {/* ── 裝置引導（LINE 內建瀏覽器切換 / 鏡頭與裝置建議）── */}
+        <DeviceTipBanner />
 
         {/* ── 限時動態（快速開始）── */}
         <div className="bg-white rounded-2xl shadow-sm p-3">

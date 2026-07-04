@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // 社群貼文：公開貼文 + 自己的私人貼文
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -50,7 +53,11 @@ export async function POST(req: NextRequest) {
   const content = String(body.content ?? '').trim()
   if (!content) return NextResponse.json({ error: '請輸入內容' }, { status: 400 })
   const visibility = body.visibility === 'private' ? 'private' : 'public'
-  await supabaseAdmin.from('posts').insert({ user_id: session.user.id, content: content.slice(0, 500), visibility })
+  const { error } = await supabaseAdmin.from('posts').insert({ user_id: session.user.id, content: content.slice(0, 500), visibility })
+  if (error) {
+    console.error('post insert failed:', error)
+    return NextResponse.json({ error: '發布失敗，請稍後再試' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }
 

@@ -43,8 +43,24 @@ export default function CommunityPage() {
   async function submit() {
     if (!text.trim() || busy) return
     setBusy(true)
-    await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text, visibility: vis }) })
-    setBusy(false); setText(''); load()
+    try {
+      const res = await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text, visibility: vis }) })
+      if (res.status === 401) {
+        alert('登入狀態已過期，請重新登入後再發布')
+        signIn('line')
+        return
+      }
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        alert(d?.error ?? '發布失敗，請稍後再試')
+        return
+      }
+      setText(''); load()
+    } catch {
+      alert('網路連線異常，發布失敗，請稍後再試')
+    } finally {
+      setBusy(false)
+    }
   }
   async function cheer(p: Post) {
     setPosts(prev => prev?.map(x => x.id === p.id ? { ...x, cheeredByMe: !x.cheeredByMe, cheers: x.cheers + (x.cheeredByMe ? -1 : 1) } : x) ?? null)
