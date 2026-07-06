@@ -16,12 +16,17 @@ export async function GET() {
   const myName = meRow?.nickname || meRow?.display_name || '使用者'
   const hasNickname = !!meRow?.nickname
 
-  const { data: rows } = await supabaseAdmin
+  // 注意：posts↔users 有兩條關聯（發文者 FK + post_cheers 多對多），embed 必須指明走哪條
+  const { data: rows, error: listErr } = await supabaseAdmin
     .from('posts')
-    .select('id, content, visibility, created_at, user_id, users(display_name, nickname, picture_url)')
+    .select('id, content, visibility, created_at, user_id, users!posts_user_id_fkey(display_name, nickname, picture_url)')
     .or(`visibility.eq.public,user_id.eq.${me}`)
     .order('created_at', { ascending: false })
     .limit(60)
+  if (listErr) {
+    console.error('posts list failed:', listErr)
+    return NextResponse.json({ error: '載入動態失敗，請稍後再試' }, { status: 500 })
+  }
 
   const ids = (rows ?? []).map(r => r.id)
   const cheerMap = new Map<string, { count: number; mine: boolean }>()
