@@ -20,21 +20,57 @@ const CATEGORY_LABELS: Record<string, string> = {
   unlock:   '關卡解鎖',
 }
 
+interface UnlockItem {
+  kind: 'farm' | 'fish'
+  id: string
+  name: string
+  emoji: string
+  points: number
+  owned: boolean
+}
+
 export default function PrizesPage() {
   const { data: session } = useSession()
   const router = useRouter()
 
   const [prizes,    setPrizes]    = useState<Prize[]>([])
+  const [unlocks,   setUnlocks]   = useState<UnlockItem[]>([])
   const [loading,   setLoading]   = useState(true)
   const [redeeming, setRedeeming] = useState<string | null>(null)
   const [toast,     setToast]     = useState<{ msg: string; ok: boolean } | null>(null)
   const [ptsOverride, setPtsOverride] = useState<number | null>(null)
 
   useEffect(() => {
+    // 獎勵經濟決策（2026-07-06）：個案端只展示平台內虛擬獎勵，實體獎品由機構端提供
     fetch('/api/prizes')
       .then(r => r.json())
-      .then(data => { setPrizes(data); setLoading(false) })
+      .then(data => { setPrizes((data as Prize[]).filter(p => p.category !== 'physical')); setLoading(false) })
+    fetch('/api/redeem-virtual')
+      .then(r => r.json())
+      .then(d => setUnlocks(d.items ?? []))
+      .catch(() => { /* ignore */ })
   }, [])
+
+  const handleUnlock = async (item: UnlockItem) => {
+    if (!session) { signIn('line'); return }
+    if (userPoints < item.points) { showToast(`積分不足（需要 ${item.points}，你有 ${userPoints}）`, false); return }
+    setRedeeming(`${item.kind}:${item.id}`)
+    try {
+      const res = await fetch('/api/redeem-virtual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: item.kind, id: item.id }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        showToast(`🎉 解鎖 ${item.emoji} ${item.name}！快去${item.kind === 'farm' ? '農場' : '水族箱'}看看`, true)
+        setPtsOverride(d.remainingPoints)
+        setUnlocks(prev => prev.map(u => u.kind === item.kind && u.id === item.id ? { ...u, owned: true } : u))
+      } else showToast(d.error ?? '解鎖失敗', false)
+    } finally {
+      setRedeeming(null)
+    }
+  }
 
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok })
@@ -90,7 +126,8 @@ export default function PrizesPage() {
 
       <div className="text-center">
         <div className="text-6xl mb-2">🎁</div>
-        <h1 className="text-4xl font-extrabold text-gray-900">兌換獎品</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900">兌換中心</h1>
+        <p className="text-gray-500 mt-1 text-sm">訓練賺積分，換遊戲幣、解鎖稀有夥伴</p>
         {session
           ? <p className="text-purple-700 font-bold mt-1 text-xl">你有 {userPoints.toLocaleString()} 積分</p>
           : <p className="text-gray-500 mt-1">登入後可兌換獎品</p>
@@ -125,6 +162,42 @@ export default function PrizesPage() {
                 <span className="text-sm text-amber-600 font-semibold">{b.cost}分</span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 稀有解鎖券：用積分直接解鎖高階物種 */}
+      {unlocks.length > 0 && (
+        <div className="w-full max-w-lg bg-white rounded-2xl border border-purple-200 p-5 shadow-sm">
+          <p className="font-bold text-gray-800 mb-1">✨ 稀有解鎖券</p>
+          <p className="text-xs text-gray-400 mb-3">用訓練積分直接解鎖農場與水族箱的稀有夥伴，不用慢慢存金幣珍珠。</p>
+          <div className="grid grid-cols-2 gap-2">
+            {unlocks.map(item => {
+              const key = `${item.kind}:${item.id}`
+              const afford = session && userPoints >= item.points
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleUnlock(item)}
+                  disabled={item.owned || redeeming === key}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
+                    item.owned
+                      ? 'border-green-200 bg-green-50 opacity-70'
+                      : afford
+                      ? 'border-purple-200 bg-purple-50 active:scale-95'
+                      : 'border-gray-100 bg-gray-50 opacity-60'
+                  }`}
+                >
+                  <span className="text-3xl">{item.emoji}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-bold text-gray-800 text-sm">{item.name}</span>
+                    <span className={`block text-xs font-semibold ${item.owned ? 'text-green-600' : 'text-purple-600'}`}>
+                      {item.owned ? '✓ 已解鎖' : redeeming === key ? '處理中…' : `${item.points} 積分`}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

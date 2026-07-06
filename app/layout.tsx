@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { GameProvider } from '@/context/GameContext'
 import { SessionProvider } from '@/components/SessionProvider'
+import RewardDropToast from '@/components/shared/RewardDropToast'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-gray-50">
         <SessionProvider>
           <GameProvider>{children}</GameProvider>
+          <RewardDropToast />
         </SessionProvider>
       </body>
     </html>

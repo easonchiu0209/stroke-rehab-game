@@ -89,10 +89,15 @@ export async function saveGameSession(payload: SaveSessionPayload): Promise<void
         }
       }
     }
-    await fetch('/api/game/save', {
+    const res = await fetch('/api/game/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+    // 獎勵回流 hub：把掉落結果廣播給 RewardDropToast（掛在 layout，全遊戲共用）
+    if (res.ok && typeof window !== 'undefined') {
+      const d = await res.json().catch(() => null)
+      if (d?.drop) window.dispatchEvent(new CustomEvent('lmx:drop', { detail: d.drop }))
+    }
   } catch { /* 未登入或離線：靜默忽略 */ }
 }

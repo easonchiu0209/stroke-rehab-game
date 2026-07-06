@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { awardDailyBonuses } from '@/lib/serverPoints'
 import { saveMotionData } from '@/lib/serverMotion'
+import { grantHubDrop } from '@/lib/serverDrop'
 
 // Points formula
 function calcPoints(score: number, accuracy: number, difficulty: string): number {
@@ -112,5 +113,8 @@ export async function POST(req: NextRequest) {
   // 每日/連續天數額外獎勵
   const daily = await awardDailyBonuses(session.user.id)
 
-  return NextResponse.json({ points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda })
+  // 獎勵回流 hub：掉落農場金幣/水族珍珠（變動獎勵）
+  const drop = await grantHubDrop(session.user.id, accuracy)
+
+  return NextResponse.json({ points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda, drop })
 }
