@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/weekly-settle", "schedule": "0 16 * * 0" }
+    { "path": "/api/cron/weekly-settle", "schedule": "0 16 * * 0" },
+    { "path": "/api/cron/weekly-report", "schedule": "0 0 * * 1" }
   ]
 }
