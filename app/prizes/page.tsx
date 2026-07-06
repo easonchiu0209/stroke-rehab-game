@@ -126,11 +126,11 @@ export default function PrizesPage() {
 
       <div className="text-center">
         <div className="text-6xl mb-2">🎁</div>
-        <h1 className="text-4xl font-extrabold text-gray-900">兌換中心</h1>
-        <p className="text-gray-500 mt-1 text-sm">訓練賺積分，換遊戲幣、解鎖稀有夥伴</p>
+        <h1 className="text-4xl font-extrabold text-slate-900">兌換中心</h1>
+        <p className="text-slate-500 mt-1 text-sm">訓練賺積分，換遊戲幣、解鎖稀有夥伴</p>
         {session
           ? <p className="text-purple-700 font-bold mt-1 text-xl">你有 {userPoints.toLocaleString()} 積分</p>
-          : <p className="text-gray-500 mt-1">登入後可兌換獎品</p>
+          : <p className="text-slate-500 mt-1">登入後可兌換獎品</p>
         }
       </div>
 
@@ -147,8 +147,8 @@ export default function PrizesPage() {
       {/* 積分兌換遊戲幣 */}
       {session && (
         <div className="w-full max-w-lg bg-white rounded-2xl border border-amber-200 p-5 shadow-sm">
-          <p className="font-bold text-gray-800 mb-1">🔄 積分兌換遊戲幣</p>
-          <p className="text-xs text-gray-400 mb-3">用平台積分換農場金幣或水族箱珍珠（單向，不可換回積分）。金幣 1:1、珍珠 2:1。</p>
+          <p className="font-bold text-slate-800 mb-1">🔄 積分兌換遊戲幣</p>
+          <p className="text-xs text-slate-400 mb-3">用平台積分換農場金幣或水族箱珍珠（單向，不可換回積分）。金幣 1:1、珍珠 2:1。</p>
           <div className="grid grid-cols-2 gap-2">
             {[
               { to: 'coins' as const, pts: 50, label: '🪙 50 金幣', cost: 50 },
@@ -158,7 +158,7 @@ export default function PrizesPage() {
             ].map((b, i) => (
               <button key={i} onClick={() => handleExchange(b.to, b.pts)} disabled={userPoints < b.cost}
                 className="flex items-center justify-between px-3 py-2.5 rounded-xl border-2 border-amber-100 bg-amber-50 disabled:opacity-40 active:scale-95">
-                <span className="font-bold text-gray-700">{b.label}</span>
+                <span className="font-bold text-slate-700">{b.label}</span>
                 <span className="text-sm text-amber-600 font-semibold">{b.cost}分</span>
               </button>
             ))}
@@ -169,8 +169,8 @@ export default function PrizesPage() {
       {/* 稀有解鎖券：用積分直接解鎖高階物種 */}
       {unlocks.length > 0 && (
         <div className="w-full max-w-lg bg-white rounded-2xl border border-purple-200 p-5 shadow-sm">
-          <p className="font-bold text-gray-800 mb-1">✨ 稀有解鎖券</p>
-          <p className="text-xs text-gray-400 mb-3">用訓練積分直接解鎖農場與水族箱的稀有夥伴，不用慢慢存金幣珍珠。</p>
+          <p className="font-bold text-slate-800 mb-1">✨ 稀有解鎖券</p>
+          <p className="text-xs text-slate-400 mb-3">用訓練積分直接解鎖農場與水族箱的稀有夥伴，不用慢慢存金幣珍珠。</p>
           <div className="grid grid-cols-2 gap-2">
             {unlocks.map(item => {
               const key = `${item.kind}:${item.id}`
@@ -185,12 +185,12 @@ export default function PrizesPage() {
                       ? 'border-green-200 bg-green-50 opacity-70'
                       : afford
                       ? 'border-purple-200 bg-purple-50 active:scale-95'
-                      : 'border-gray-100 bg-gray-50 opacity-60'
+                      : 'border-slate-100 bg-slate-50 opacity-60'
                   }`}
                 >
                   <span className="text-3xl">{item.emoji}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block font-bold text-gray-800 text-sm">{item.name}</span>
+                    <span className="block font-bold text-slate-800 text-sm">{item.name}</span>
                     <span className={`block text-xs font-semibold ${item.owned ? 'text-green-600' : 'text-purple-600'}`}>
                       {item.owned ? '✓ 已解鎖' : redeeming === key ? '處理中…' : `${item.points} 積分`}
                     </span>
@@ -203,39 +203,39 @@ export default function PrizesPage() {
       )}
 
       {loading ? (
-        <div className="text-center py-16 text-gray-400 animate-pulse text-xl">載入獎品中…</div>
+        <div className="text-center py-16 text-slate-400 animate-pulse text-xl">載入獎品中…</div>
       ) : (
         <div className="w-full max-w-lg grid grid-cols-1 gap-4">
           {prizes.map(prize => {
             const canRedeem = session && userPoints >= prize.points_cost
             const outOfStock = prize.stock !== null && prize.stock <= 0
             return (
-              <div key={prize.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex gap-4 items-center">
+              <div key={prize.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex gap-4 items-center">
                 <div className="text-5xl shrink-0">{prize.image_emoji}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="font-bold text-gray-900">{prize.name}</p>
+                    <p className="font-bold text-slate-900">{prize.name}</p>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
                       {CATEGORY_LABELS[prize.category] ?? prize.category}
                     </span>
                   </div>
-                  {prize.description && <p className="text-sm text-gray-500 mb-1">{prize.description}</p>}
+                  {prize.description && <p className="text-sm text-slate-500 mb-1">{prize.description}</p>}
                   {prize.stock !== null && (
-                    <p className="text-xs text-gray-400">剩餘 {prize.stock} 件</p>
+                    <p className="text-xs text-slate-400">剩餘 {prize.stock} 件</p>
                   )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-2xl font-black text-purple-600">{prize.points_cost}</p>
-                  <p className="text-xs text-gray-400 mb-2">積分</p>
+                  <p className="text-xs text-slate-400 mb-2">積分</p>
                   <button
                     onClick={() => handleRedeem(prize)}
                     disabled={outOfStock || redeeming === prize.id || (!session)}
                     className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
                       outOfStock
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         : canRedeem
                         ? 'bg-purple-500 text-white hover:bg-purple-600 active:scale-95'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     }`}
                   >
                     {outOfStock ? '已售完' : redeeming === prize.id ? '處理中…' : '兌換'}
@@ -249,7 +249,7 @@ export default function PrizesPage() {
 
       <button
         onClick={() => router.push('/')}
-        className="mt-4 px-8 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg hover:bg-gray-50"
+        className="mt-4 px-8 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-semibold text-lg hover:bg-slate-50"
       >
         ← 返回首頁
       </button>
