@@ -24,6 +24,11 @@ interface Sess {
   trajectory: number[][] | null
   duration_secs: number; created_at: string
 }
+interface WeeklyReport {
+  week_start: string
+  therapist_summary: string | null
+  generated_by: 'llm' | 'rules'
+}
 
 export default function TherapistPage() {
   const { status } = useSession()
@@ -32,6 +37,7 @@ export default function TherapistPage() {
   const [forbidden, setForbidden] = useState(false)
   const [sel, setSel] = useState<Patient | null>(null)
   const [sessions, setSessions] = useState<Sess[] | null>(null)
+  const [reports, setReports] = useState<WeeklyReport[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') signIn('line')
@@ -46,8 +52,11 @@ export default function TherapistPage() {
   }, [status])
 
   const openPatient = useCallback((p: Patient) => {
-    setSel(p); setSessions(null)
-    fetch(`/api/therapist?userId=${p.id}`).then(r => r.json()).then(d => setSessions(d.sessions ?? []))
+    setSel(p); setSessions(null); setReports([])
+    fetch(`/api/therapist?userId=${p.id}`).then(r => r.json()).then(d => {
+      setSessions(d.sessions ?? [])
+      setReports(d.reports ?? [])
+    })
   }, [])
 
   function exportCsv() {
@@ -103,7 +112,7 @@ export default function TherapistPage() {
           ))}
         </div>
       ) : (
-        <Detail patient={sel} sessions={sessions} onBack={() => { setSel(null); setSessions(null) }} onExport={exportCsv} />
+        <Detail patient={sel} sessions={sessions} reports={reports} onBack={() => { setSel(null); setSessions(null) }} onExport={exportCsv} />
       )}
     </main>
   )
@@ -113,8 +122,8 @@ function Center({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen flex items-center justify-center text-gray-500 text-lg text-center px-6">{children}</div>
 }
 
-function Detail({ patient, sessions, onBack, onExport }: {
-  patient: Patient; sessions: Sess[] | null; onBack: () => void; onExport: () => void
+function Detail({ patient, sessions, reports, onBack, onExport }: {
+  patient: Patient; sessions: Sess[] | null; reports: WeeklyReport[]; onBack: () => void; onExport: () => void
 }) {
   if (!sessions) return <Center>載入記錄中…</Center>
 
@@ -159,6 +168,31 @@ function Detail({ patient, sessions, onBack, onExport }: {
           <p className="text-sm text-gray-400">共 {n} 場訓練</p>
         </div>
       </div>
+
+      {/* 每週摘要（LLM 週報治療師版草稿） */}
+      {reports.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <p className="font-bold text-slate-800">📊 每週摘要</p>
+            <span className="text-[10px] text-slate-400">草稿僅供參考，請審閱後再用於臨床溝通</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {reports.map(r => (
+              <div key={r.week_start} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-bold text-slate-700">{r.week_start} 起的一週</p>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    r.generated_by === 'llm' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {r.generated_by === 'llm' ? 'AI 輔助生成' : '規則式生成'}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">{r.therapist_summary ?? '—'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {n === 0 ? <p className="text-center text-gray-400 py-10">此個案尚無訓練記錄</p> : (<>
         {/* Summary */}

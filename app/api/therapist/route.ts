@@ -18,13 +18,16 @@ export async function GET(req: NextRequest) {
 
   const userId = req.nextUrl.searchParams.get('userId')
 
-  // ── 單一個案的所有訓練記錄 ────────────────────────────────
+  // ── 單一個案的所有訓練記錄 + 每週摘要 ─────────────────────
   if (userId) {
-    const [{ data: patient }, { data: sessions }] = await Promise.all([
+    const [{ data: patient }, { data: sessions }, { data: reports }] = await Promise.all([
       supabaseAdmin.from('users').select('id, display_name, picture_url, total_points, created_at').eq('id', userId).single(),
       supabaseAdmin.from('game_sessions').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
+      supabaseAdmin.from('weekly_reports')
+        .select('week_start, therapist_summary, generated_by, created_at')
+        .eq('user_id', userId).order('week_start', { ascending: false }).limit(12),
     ])
-    return NextResponse.json({ patient, sessions: sessions ?? [] })
+    return NextResponse.json({ patient, sessions: sessions ?? [], reports: reports ?? [] })
   }
 
   // ── 個案清單 + 摘要 ───────────────────────────────────────
