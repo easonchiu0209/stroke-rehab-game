@@ -37,6 +37,8 @@ export interface SaveSessionPayload {
   zone_heatmap?: number[][]
   trajectory?: number[][]   // [[t_ms, nx, ny], ...] 約 10Hz 取樣的手部軌跡
   duration_secs?: number
+  // ROM 量測（骨科遊戲附上；寫入 rom_records）
+  rom?: { joint: string; motion: string; angle_deg: number }
   // Pose 動作錄製（usePoseMonitor 自動附上）
   pose_frames?: number[][]        // [[t_ms, x0,y0, ...], ...] 上半身 landmark 序列
   pose_landmark_ids?: number[]    // 每幀 t 之後的 landmark 順序

@@ -38,6 +38,9 @@ const GAME_NAMES: Record<string, string> = {
   'pet-pat':       '復能毛小孩',
   'color-island':  '彩球復能島',
   'kitchen-catch': '復能小廚房',
+  'pinch-sort':    '夾取分類',
+  'balance-shift': '重心平衡',
+  'wall-climb':    '爬牆挑戰',
 }
 
 export default function ProfilePage() {

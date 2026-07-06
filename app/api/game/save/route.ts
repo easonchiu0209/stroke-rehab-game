@@ -113,6 +113,20 @@ export async function POST(req: NextRequest) {
   // 每日/連續天數額外獎勵
   const daily = await awardDailyBonuses(session.user.id)
 
+  // ROM 量測落庫（骨科遊戲；表未建時只記 log，不影響主流程）
+  const rom = body.rom as { joint?: string; motion?: string; angle_deg?: number } | undefined
+  if (rom && typeof rom.joint === 'string' && typeof rom.motion === 'string' && Number.isFinite(Number(rom.angle_deg))) {
+    const { error: romErr } = await supabaseAdmin.from('rom_records').insert({
+      user_id: session.user.id,
+      joint: rom.joint.slice(0, 30),
+      motion: rom.motion.slice(0, 30),
+      angle_deg: Math.max(0, Math.min(200, Number(rom.angle_deg))),
+      source: 'game',
+      session_id: savedSession.id,
+    })
+    if (romErr) console.error('rom_records insert failed:', romErr)
+  }
+
   // 獎勵回流 hub：掉落農場金幣/水族珍珠（變動獎勵）
   const drop = await grantHubDrop(session.user.id, accuracy)
 
