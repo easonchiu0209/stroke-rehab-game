@@ -10,6 +10,7 @@ import { saveGameSession, computeZones } from '@/lib/saveSession'
 import { usePoseMonitor } from '@/hooks/usePoseMonitor'
 import CompensationHint from '@/components/game/CompensationHint'
 import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
+import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, speak } from '@/lib/feedback'
 import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
@@ -104,6 +105,9 @@ function PlayingView({
     active: gamePhase === 'countdown' || gamePhase === 'playing',
   })
 
+  // 場中心流 DDA：滾動命中率調整地鼠存在時間（維持 70–80% 甜蜜區）
+  const { reportHit, reportMiss, getFactor } = useFlowDda(gamePhase === 'playing')
+
   // Camera
   useEffect(() => {
     startCamera('user')
@@ -126,6 +130,7 @@ function PlayingView({
     if (t) { clearTimeout(t); moleTimersRef.current.delete(moleId) }
 
     feedbackHit()
+    reportHit()
 
     hitCountRef.current += 1
     setHitCount((n) => n + 1)
@@ -149,7 +154,7 @@ function PlayingView({
       setHitMoleIds((prev) => { const s = new Set(prev); s.delete(moleId); return s })
       setTimeout(() => spawnMoleRef.current(), 300)
     }, 280)
-  }, [])
+  }, [reportHit])
 
   const { handDetected, handNxDisplay, handNy, setMoles: syncDetector } = useMoleDetector({
     landmarker,
@@ -180,7 +185,9 @@ function PlayingView({
     const id = performance.now() + Math.random() * 100000
     const now = performance.now()
 
-    const mole = { id, nx, ny, spawnTime: now, expireAt: now + cfg.displayMs, cssRadius: cssR }
+    // 場中 DDA：依滾動命中率調整存在時間（factor >1 = 更難 = 顯示更短）
+    const displayMs = Math.round(cfg.displayMs / getFactor())
+    const mole = { id, nx, ny, spawnTime: now, expireAt: now + displayMs, cssRadius: cssR }
 
     setMolesState((prev) => [...prev, mole])
 
@@ -190,13 +197,14 @@ function PlayingView({
       if (gamePhaseRef.current !== 'playing') return
       missCountRef.current += 1
       setMissCount((n) => n + 1)
-      hitRecordsRef.current.push({ nx, ny, reactionMs: cfg.displayMs, success: false })
+      reportMiss()
+      hitRecordsRef.current.push({ nx, ny, reactionMs: displayMs, success: false })
       setMolesState((prev) => prev.filter((m) => m.id !== id))
       setTimeout(() => spawnMoleRef.current(), 400)
-    }, cfg.displayMs)
+    }, displayMs)
 
     moleTimersRef.current.set(id, timer)
-  }, [cfg])
+  }, [cfg, getFactor, reportMiss])
 
   const spawnMoleRef = useRef(spawnMole)
   useEffect(() => { spawnMoleRef.current = spawnMole }, [spawnMole])
@@ -413,12 +421,19 @@ function PlayingView({
 function ConfigView({
   onStart,
   onBack,
+  recommended,
 }: {
   onStart: (d: Difficulty) => void
   onBack:  () => void
+  recommended: Difficulty | null
 }) {
   const [selected, setSelected] = useState<Difficulty>('medium')
-  const cfg = CFGS[selected]
+  const touchedRef = useRef(false)
+
+  // AI 建議難度：使用者尚未手動選擇時自動預選
+  useEffect(() => {
+    if (recommended && !touchedRef.current) setSelected(recommended)
+  }, [recommended])
 
   const diffOptions: { key: Difficulty; emoji: string; desc: string }[] = [
     { key: 'easy',   emoji: '🟢', desc: '大目標・4 秒顯示・中央區域' },
@@ -454,7 +469,7 @@ function ConfigView({
             return (
               <button
                 key={key}
-                onClick={() => setSelected(key)}
+                onClick={() => { touchedRef.current = true; setSelected(key) }}
                 className={`text-left p-4 rounded-xl border-2 transition-all ${
                   active ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
@@ -462,6 +477,9 @@ function ConfigView({
                 <div className="flex items-center gap-2 mb-1">
                   <span>{emoji}</span>
                   <span className="font-bold text-gray-900">{c.label} {c.sublabel}</span>
+                  {recommended === key && (
+                    <span className="text-xs font-bold bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">⭐ AI 建議</span>
+                  )}
                   {active && <span className="ml-auto text-xs font-bold text-green-600">已選</span>}
                 </div>
                 <p className="text-sm text-gray-500">{desc}</p>
@@ -671,6 +689,7 @@ export default function WhackMolePage() {
   const [gameResults,  setGameResults]  = useState<GameResults | null>(null)
 
   const { landmarker, isLoading, error: landmarkerError } = useHandLandmarker()
+  const { recommended } = useDdaRecommendation('whack-mole')
   const spokeResultRef = useRef(false)
 
   const handleStart = useCallback((d: Difficulty) => {
@@ -717,7 +736,7 @@ export default function WhackMolePage() {
   }, [])
 
   if (pagePhase === 'config') {
-    return <ConfigView onStart={handleStart} onBack={() => router.push('/')} />
+    return <ConfigView onStart={handleStart} onBack={() => router.push('/')} recommended={recommended} />
   }
 
   if (pagePhase === 'playing') {

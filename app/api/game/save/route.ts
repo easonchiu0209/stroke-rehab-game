@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // 動作錄製 + 代償事件 + 品質指標（Phase 1 AI 基礎建設）
-  await saveMotionData(session.user.id, savedSession.id, body, trajectory ?? null)
+  const dda = await saveMotionData(session.user.id, savedSession.id, body, trajectory ?? null)
 
   // Award points
   await supabaseAdmin.from('point_logs').insert({
@@ -112,5 +112,5 @@ export async function POST(req: NextRequest) {
   // 每日/連續天數額外獎勵
   const daily = await awardDailyBonuses(session.user.id)
 
-  return NextResponse.json({ points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak })
+  return NextResponse.json({ points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda })
 }

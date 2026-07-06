@@ -10,6 +10,7 @@ import { saveGameSession, computeZones } from '@/lib/saveSession'
 import { usePoseMonitor } from '@/hooks/usePoseMonitor'
 import CompensationHint from '@/components/game/CompensationHint'
 import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
+import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
 import { SceneBack, SceneFront } from '@/components/game/GameScene'
 
@@ -103,11 +104,12 @@ interface HitRecord { nx: number; ny: number; reactionMs: number; type: 'fruit' 
 // ── ConfigView ────────────────────────────────────────────────────────────────
 
 function ConfigView({
-  difficulty, setDifficulty, onStart,
+  difficulty, setDifficulty, onStart, recommended,
 }: {
   difficulty: Difficulty
   setDifficulty: (d: Difficulty) => void
   onStart: () => void
+  recommended: Difficulty | null
 }) {
   const router = useRouter()
   return (
@@ -149,6 +151,9 @@ function ConfigView({
                   <span className="text-lg">{icons[key]}</span>
                   <span className="font-bold text-gray-900">{cfg.label}</span>
                   <span className="font-semibold text-gray-600">{cfg.sublabel}</span>
+                  {recommended === key && (
+                    <span className="text-xs font-bold bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">⭐ AI 建議</span>
+                  )}
                   {selected && (
                     <span className="ml-auto text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">已選</span>
                   )}
@@ -235,6 +240,9 @@ function PlayingView({
     active: phase === 'countdown' || phase === 'playing',
   })
 
+  // 場中心流 DDA：滾動命中率調整物件飛行速度（維持 70–80% 甜蜜區）
+  const { reportHit, reportMiss, getFactor } = useFlowDda(phase === 'playing')
+
   useEffect(() => { startCamera('user'); return () => stopCamera() }, []) // eslint-disable-line
 
   // Speak start prompt once
@@ -256,15 +264,21 @@ function PlayingView({
   // Spawner
   useEffect(() => {
     if (phase !== 'playing') return
+    const spawnOne = () => {
+      const t = makeTarget(cfg)
+      const f = getFactor()   // 場中 DDA：>1 = 更難 = 飛更快
+      t.vx *= f; t.vy *= f
+      return t
+    }
     spawnRef.current = setInterval(() => {
       if (phaseRef.current !== 'playing') return
       setTargets(prev => {
         if (prev.length >= cfg.maxTargets * 2) return prev   // hard cap
-        return [...prev, makeTarget(cfg)]
+        return [...prev, spawnOne()]
       })
     }, cfg.spawnIntervalMs)
     // Spawn first immediately
-    setTargets([makeTarget(cfg)])
+    setTargets([spawnOne()])
     return () => { if (spawnRef.current) clearInterval(spawnRef.current) }
   }, [phase, cfg])  // eslint-disable-line
 
@@ -299,7 +313,9 @@ function PlayingView({
       juiceRef.current?.burst(nx, ny, { colors: ['#616161', '#424242', '#9e9e9e'], emojis: ['💨'], count: 10 })
       juiceRef.current?.floatText(nx, ny - 0.06, '−5', { color: '#ef5350' })
       juiceRef.current?.shake(1)
+      // 炸彈不回報 DDA（測的是抑制能力，不是搆取能力）
     } else {
+      reportHit()
       feedbackHit()
       hitCountRef.current++
       scoreRef.current += 10
@@ -310,14 +326,15 @@ function PlayingView({
       juiceRef.current?.floatText(nx, ny - 0.06, '+10')
       juiceRef.current?.shake(0.4)
     }
-  }, [])
+  }, [reportHit])
 
   const handleExpired = useCallback((id: number) => {
     if (phaseRef.current !== 'playing') return
     setTargets(prev => prev.filter(t => t.id !== id))
     missCountRef.current++
     setMissCount(n => n + 1)
-  }, [])
+    reportMiss()
+  }, [reportMiss])
 
   const { handDetected, setTargets: syncDetector } = useSlashDetector({
     landmarker,
@@ -583,6 +600,13 @@ export default function SlashFruitPage() {
 
   const [phase,      setPhase]      = useState<Phase>('config')
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const { recommended } = useDdaRecommendation('slash-fruit')
+  const touchedRef = useRef(false)
+
+  // AI 建議難度：使用者尚未手動選擇時自動預選
+  useEffect(() => {
+    if (recommended && !touchedRef.current) setDifficulty(recommended)
+  }, [recommended])
   const [results,    setResults]    = useState<{
     hits: number; misses: number; bombHits: number; records: HitRecord[]
   } | null>(null)
@@ -618,7 +642,8 @@ export default function SlashFruitPage() {
     return (
       <ConfigView
         difficulty={difficulty}
-        setDifficulty={setDifficulty}
+        setDifficulty={(d) => { touchedRef.current = true; setDifficulty(d) }}
+        recommended={recommended}
         onStart={() => setPhase('countdown')}
       />
     )
