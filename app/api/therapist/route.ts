@@ -31,10 +31,16 @@ export async function GET(req: NextRequest) {
   }
 
   // ── 個案清單 + 摘要 ───────────────────────────────────────
-  const [{ data: users }, { data: sessions }] = await Promise.all([
+  const weekAgo = new Date(Date.now() - 7 * 86400_000).toISOString()
+  const [{ data: users }, { data: sessions }, { data: comps }] = await Promise.all([
     supabaseAdmin.from('users').select('id, display_name, picture_url, total_points, role, created_at'),
     supabaseAdmin.from('game_sessions').select('user_id, created_at, accuracy'),
+    supabaseAdmin.from('compensation_events').select('user_id').gte('created_at', weekAgo),
   ])
+
+  // 本週代償事件數（依從性紅點註記用）
+  const compBy = new Map<string, number>()
+  for (const c of comps ?? []) compBy.set(c.user_id, (compBy.get(c.user_id) ?? 0) + 1)
 
   const byUser = new Map<string, { count: number; last: string; accSum: number }>()
   for (const s of sessions ?? []) {
@@ -54,6 +60,7 @@ export async function GET(req: NextRequest) {
         session_count: e?.count ?? 0,
         last_active: e?.last ?? null,
         avg_accuracy: e && e.count ? Math.round(e.accSum / e.count) : null,
+        comp_week: compBy.get(u.id) ?? 0,
       }
     })
     .sort((a, b) => (b.last_active ?? '').localeCompare(a.last_active ?? ''))
@@ -66,6 +73,7 @@ export async function GET(req: NextRequest) {
       id: me.id, display_name: `${me.display_name}（我）`, picture_url: me.picture_url,
       total_points: me.total_points, session_count: e?.count ?? 0,
       last_active: e?.last ?? null, avg_accuracy: e && e.count ? Math.round(e.accSum / e.count) : null,
+      comp_week: compBy.get(me.id) ?? 0,
     })
   }
 

@@ -16,7 +16,18 @@ const gname = (g: string) => GAME_NAMES[g] ?? g
 interface Patient {
   id: string; display_name: string; picture_url: string | null
   total_points: number; session_count: number; last_active: string | null; avg_accuracy: number | null
+  comp_week?: number
 }
+
+// 依從性燈號：<3 天內有練=綠、3–6 天未練=黃、≥7 天未練=紅、從未訓練=灰
+function adherenceLight(p: Patient): { dot: string; label: string; cls: string } {
+  if (!p.last_active) return { dot: 'bg-slate-300', label: '未開始', cls: 'text-slate-400' }
+  const days = (Date.now() - new Date(p.last_active).getTime()) / 86400_000
+  if (days < 3) return { dot: 'bg-green-500', label: '正常訓練中', cls: 'text-green-600' }
+  if (days < 7) return { dot: 'bg-amber-400', label: `${Math.floor(days)} 天未訓練`, cls: 'text-amber-600' }
+  return { dot: 'bg-red-500', label: `${Math.floor(days)} 天未訓練`, cls: 'text-red-600' }
+}
+const COMP_WARN_THRESHOLD = 15   // 本週代償事件數達此值 → 紅點註記
 interface Sess {
   id: string; game_type: string; difficulty: string; score: number; hits: number; misses: number
   accuracy: number; avg_reaction_ms: number | null; highest_reach: number | null
@@ -101,8 +112,17 @@ export default function TherapistPage() {
                 {p.picture_url ? <img src={p.picture_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">🙂</div>}
               </div>
               <div className="flex-1">
-                <p className="font-bold text-slate-800">{p.display_name}</p>
-                <p className="text-xs text-gray-400">{p.session_count} 場 · 最近 {p.last_active ? new Date(p.last_active).toLocaleDateString('zh-TW') : '—'}</p>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${adherenceLight(p).dot}`} />
+                  <p className="font-bold text-slate-800">{p.display_name}</p>
+                  {(p.comp_week ?? 0) >= COMP_WARN_THRESHOLD && (
+                    <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">⚠️ 代償偏多</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">
+                  {p.session_count} 場 · <span className={adherenceLight(p).cls}>{adherenceLight(p).label}</span>
+                  {(p.comp_week ?? 0) > 0 && <span> · 本週代償 {p.comp_week} 次</span>}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-lg font-black text-blue-600">{p.avg_accuracy ?? '—'}%</p>
