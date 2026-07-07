@@ -104,6 +104,10 @@ export async function saveGameSession(payload: SaveSessionPayload): Promise<Save
       if (d?.drop && typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('lmx:drop', { detail: d.drop }))
       }
+      // 場末 AI 教練訊息 → CoachToast（掛在 layout，全遊戲共用）
+      if (d?.coach?.text && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('lmx:coach', { detail: d.coach }))
+      }
       return d
     }
     return null

@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { awardDailyBonuses } from '@/lib/serverPoints'
 import { saveMotionData } from '@/lib/serverMotion'
 import { grantHubDrop } from '@/lib/serverDrop'
+import { generateCoach } from '@/lib/serverCoach'
 
 // Points formula
 function calcPoints(score: number, accuracy: number, difficulty: string): number {
@@ -130,5 +131,11 @@ export async function POST(req: NextRequest) {
   // 獎勵回流 hub：掉落農場金幣/水族珍珠（變動獎勵）
   const drop = await grantHubDrop(session.user.id, accuracy)
 
-  return NextResponse.json({ session_id: savedSession.id, points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda, drop })
+  // 場末即時 AI 教練（LLM 逾時/失敗自動退規則式，不拖慢存檔）
+  const coach = await generateCoach({
+    userId: session.user.id, gameType: game_type, difficulty,
+    hits, misses, accuracy, ddaChange: dda?.difficulty_changed ?? 0,
+  })
+
+  return NextResponse.json({ session_id: savedSession.id, points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda, drop, coach })
 }

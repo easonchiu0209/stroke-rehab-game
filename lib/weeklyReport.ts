@@ -106,10 +106,8 @@ export async function collectWeekStats(userId: string, now = new Date()): Promis
 
 export interface ReportTexts { patient_message: string; therapist_summary: string; generated_by: 'llm' | 'rules' }
 
-// 禁用詞白名單（AI 指引 §5.1：輸出過檢查後才顯示）
-const BANNED = ['治癒', '療效', '診斷', '保證', '痊癒', '根治', '治療效果', '用藥', '處方藥', '醫囑', '疾病改善']
-
-function hasBanned(text: string) { return BANNED.some(w => text.includes(w)) }
+// 禁用詞白名單移至 lib/aiGuards.ts（與即時教練共用）
+import { hasBannedWords as hasBanned } from '@/lib/aiGuards'
 
 const SYSTEM_PROMPT = `你是復能訓練平台的數據回饋助手，為中風後上肢訓練的個案與其治療師撰寫每週回顧。
 
