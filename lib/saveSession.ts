@@ -72,7 +72,9 @@ export function takeTrajectory(): number[][] {
   const t = _liveTraj; _liveTraj = null; return t ?? []
 }
 
-export async function saveGameSession(payload: SaveSessionPayload): Promise<void> {
+export interface SaveResult { session_id?: string }
+
+export async function saveGameSession(payload: SaveSessionPayload): Promise<SaveResult | null> {
   try {
     let body = payload
     if (!body.trajectory) {
@@ -97,9 +99,14 @@ export async function saveGameSession(payload: SaveSessionPayload): Promise<void
       body: JSON.stringify(body),
     })
     // 獎勵回流 hub：把掉落結果廣播給 RewardDropToast（掛在 layout，全遊戲共用）
-    if (res.ok && typeof window !== 'undefined') {
+    if (res.ok) {
       const d = await res.json().catch(() => null)
-      if (d?.drop) window.dispatchEvent(new CustomEvent('lmx:drop', { detail: d.drop }))
+      if (d?.drop && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('lmx:drop', { detail: d.drop }))
+      }
+      return d
     }
+    return null
   } catch { /* 未登入或離線：靜默忽略 */ }
+  return null
 }

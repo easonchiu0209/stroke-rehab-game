@@ -36,6 +36,7 @@ interface Sess {
   left_hits: number; right_hits: number; center_hits: number; zone_heatmap: number[][] | null
   trajectory: number[][] | null
   duration_secs: number; created_at: string
+  pain_score?: number | null
 }
 interface WeeklyReport {
   week_start: string
@@ -439,7 +440,12 @@ function Detail({ patient, sessions, reports, onBack, onExport }: {
               {recent.map(s => (
                 <tr key={s.id} className="border-b border-gray-50">
                   <td className="py-2 pr-2 text-gray-500 whitespace-nowrap">{new Date(s.created_at).toLocaleDateString('zh-TW')}</td>
-                  <td className="pr-2 font-medium text-gray-700 whitespace-nowrap">{gname(s.game_type)}</td>
+                  <td className="pr-2 font-medium text-gray-700 whitespace-nowrap">
+                    {gname(s.game_type)}
+                    {s.pain_score != null && s.pain_score >= 4 && (
+                      <span className="ml-1 text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full whitespace-nowrap">疼痛 {s.pain_score}</span>
+                    )}
+                  </td>
                   <td className="pr-2 text-gray-500">{s.difficulty}</td>
                   <td className="pr-2 text-gray-700">{s.hits}/{s.hits + s.misses}</td>
                   <td className="pr-2 font-bold text-blue-600">{s.accuracy}%</td>

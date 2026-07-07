@@ -360,13 +360,16 @@ function ResultsView({ difficulty, reps, maxDeg, prevBest, onReplay, onHome }: {
   onHome: () => void
 }) {
   const savedRef = useRef(false)
+  const sessionIdRef = useRef<string | null>(null)
+  const [pain, setPain] = useState<number | null>(null)
+  const [painDone, setPainDone] = useState(false)
   const newRecord = prevBest != null ? maxDeg > prevBest : maxDeg > 0
 
   useEffect(() => {
     if (savedRef.current) return
     savedRef.current = true
     speak(reps > 0 ? '做得很好，今天的肩膀有努力喔' : '完成囉，下次再挑戰')
-    void saveGameSession({
+    saveGameSession({
       game_type: 'wall-climb',
       difficulty,
       score: reps * 10,
@@ -375,8 +378,23 @@ function ResultsView({ difficulty, reps, maxDeg, prevBest, onReplay, onHome }: {
       duration_secs: GAME_SECS,
       highest_reach: Math.min(100, Math.round((maxDeg / MAX_DEG) * 100)),
       rom: maxDeg > 0 ? { joint: 'shoulder', motion: 'flexion', angle_deg: maxDeg } : undefined,
-    })
+    }).then(r => { if (r?.session_id) sessionIdRef.current = r.session_id })
   }, [difficulty, reps, maxDeg])
+
+  // 疼痛 NRS 回報（0–10）：選了就補寫到這場 session
+  async function reportPain(n: number) {
+    setPain(n)
+    setPainDone(true)
+    if (sessionIdRef.current) {
+      try {
+        await fetch('/api/game/pain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionIdRef.current, pain: n }),
+        })
+      } catch { /* 離線時略過 */ }
+    }
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6">
@@ -398,6 +416,35 @@ function ResultsView({ difficulty, reps, maxDeg, prevBest, onReplay, onHome }: {
           <p className="text-4xl font-black text-amber-600">{prevBest != null ? `${prevBest}°` : '—'}</p>
           <p className="text-sm text-slate-500 font-semibold mt-1">先前最佳</p>
         </div>
+      </div>
+
+      {/* 疼痛 NRS 快速回報（骨科必備） */}
+      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        {!painDone ? (
+          <>
+            <p className="font-bold text-slate-800 mb-1">這次訓練肩膀會痛嗎？</p>
+            <p className="text-xs text-slate-400 mb-3">0＝完全不痛，10＝非常痛</p>
+            <div className="grid grid-cols-6 gap-1.5">
+              {Array.from({ length: 11 }, (_, n) => (
+                <button key={n} onClick={() => reportPain(n)}
+                  className={`py-2.5 rounded-xl font-black text-lg active:scale-95 ${
+                    n === 0 ? 'bg-green-100 text-green-700'
+                    : n <= 3 ? 'bg-lime-100 text-lime-700'
+                    : n <= 6 ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-700'
+                  }`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : pain != null && pain >= 4 ? (
+          <p className="text-amber-800 font-semibold leading-relaxed">
+            已記錄（疼痛 {pain} 分）。疼痛達 4 分以上，<strong>請記得告訴你的治療師</strong>，先暫停這個動作的練習。
+          </p>
+        ) : (
+          <p className="text-emerald-700 font-semibold">已記錄，謝謝回報！{pain === 0 ? '完全不痛，太好了 👍' : ''}</p>
+        )}
       </div>
 
       <p className="text-xs text-slate-400 max-w-md text-center">角度為鏡頭估算，僅供訓練參考，非醫療量測。</p>
