@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { computeKinematics, averageKinematics, type Kinematics } from '@/lib/kinematics'
+import { GAME_INFO, DIFF_LABELS } from '@/lib/gameInfo'
 
 const GAME_NAMES: Record<string, string> = {
   'whack-mole': '復能打地鼠', 'slash-fruit': '復能切切樂', 'farm': '復能開心農場',
@@ -139,6 +140,102 @@ export default function TherapistPage() {
   )
 }
 
+// ── 訓練處方區塊（開立/列表/停用）────────────────────────────
+interface RxRow {
+  id: string; game_type: string
+  difficulty_params: { difficulty?: string } | null
+  sessions_per_week: number; note: string | null; active: boolean; created_at: string
+}
+
+function RxSection({ patientId }: { patientId: string }) {
+  const [rxs, setRxs] = useState<RxRow[] | null>(null)
+  const [game, setGame] = useState('whack-mole')
+  const [diff, setDiff] = useState('easy')
+  const [perWeek, setPerWeek] = useState(3)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(() => {
+    fetch(`/api/prescriptions?userId=${patientId}`)
+      .then(r => r.json()).then(d => setRxs(d.prescriptions ?? []))
+      .catch(() => setRxs([]))
+  }, [patientId])
+  useEffect(() => { load() }, [load])
+
+  async function create() {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/prescriptions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: patientId, game_type: game, difficulty: diff, sessions_per_week: perWeek, note }),
+      })
+      if (res.ok) { setNote(''); load() }
+      else alert((await res.json().catch(() => null))?.error ?? '開立失敗')
+    } finally { setBusy(false) }
+  }
+
+  async function deactivate(id: string) {
+    if (!confirm('停用這張處方？個案端將不再顯示。')) return
+    await fetch('/api/prescriptions', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    load()
+  }
+
+  const actives = (rxs ?? []).filter(r => r.active)
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm">
+      <p className="font-bold text-slate-800 mb-3">📋 訓練處方</p>
+
+      {/* 開立表單 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+        <select value={game} onChange={e => setGame(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 bg-slate-50">
+          {Object.entries(GAME_INFO).map(([id, g]) => <option key={id} value={id}>{g.emoji} {g.name}</option>)}
+        </select>
+        <select value={diff} onChange={e => setDiff(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 bg-slate-50">
+          <option value="easy">Level 1（易）</option>
+          <option value="medium">Level 2（中）</option>
+          <option value="hard">Level 3（難）</option>
+        </select>
+        <select value={perWeek} onChange={e => setPerWeek(Number(e.target.value))} className="border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 bg-slate-50">
+          {[1, 2, 3, 4, 5, 6, 7].map(n => <option key={n} value={n}>每週 {n} 次</option>)}
+        </select>
+        <button onClick={create} disabled={busy}
+          className="rounded-xl bg-emerald-600 text-white text-sm font-bold active:scale-95 disabled:opacity-50 py-2">
+          {busy ? '開立中…' : '＋ 開立處方'}
+        </button>
+      </div>
+      <input value={note} onChange={e => setNote(e.target.value)} maxLength={200}
+        placeholder="備註（選填，個案端會看到，例：用患側手、慢慢來）"
+        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50 mb-3" />
+
+      {/* 有效處方列表 */}
+      {rxs === null ? <p className="text-sm text-slate-400">載入中…</p>
+        : actives.length === 0 ? <p className="text-sm text-slate-400">尚無有效處方</p>
+        : (
+          <div className="flex flex-col gap-2">
+            {actives.map(r => {
+              const info = GAME_INFO[r.game_type]
+              const d = r.difficulty_params?.difficulty ?? 'easy'
+              return (
+                <div key={r.id} className="flex items-center gap-3 border border-slate-100 rounded-xl p-3 bg-slate-50/60">
+                  <span className="text-xl">{info?.emoji ?? '🎮'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800">
+                      {info?.name ?? r.game_type}
+                      <span className="ml-1.5 text-xs text-slate-400">{DIFF_LABELS[d] ?? d} · 每週 {r.sessions_per_week} 次</span>
+                    </p>
+                    {r.note && <p className="text-xs text-slate-400">💬 {r.note}</p>}
+                  </div>
+                  <button onClick={() => deactivate(r.id)} className="text-xs font-bold text-red-400 hover:text-red-600 shrink-0">停用</button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+    </div>
+  )
+}
+
 function Center({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen flex items-center justify-center text-gray-500 text-lg text-center px-6">{children}</div>
 }
@@ -189,6 +286,9 @@ function Detail({ patient, sessions, reports, onBack, onExport }: {
           <p className="text-sm text-gray-400">共 {n} 場訓練</p>
         </div>
       </div>
+
+      {/* 訓練處方 */}
+      <RxSection patientId={patient.id} />
 
       {/* 每週摘要（LLM 週報治療師版草稿） */}
       {reports.length > 0 && (

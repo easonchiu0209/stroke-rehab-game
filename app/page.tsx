@@ -6,6 +6,7 @@ import { useSession, signIn } from 'next-auth/react'
 import DeviceTipBanner from '@/components/shared/DeviceTipBanner'
 import WeeklyReportCard from '@/components/home/WeeklyReportCard'
 import DailyQuestCard from '@/components/home/DailyQuestCard'
+import PrescriptionCard from '@/components/home/PrescriptionCard'
 
 interface GameCardData {
   id: string; emoji: string; title: string; subtitle: string
@@ -107,6 +108,9 @@ export default function HomePage() {
 
         {/* ── 裝置引導（LINE 內建瀏覽器切換 / 鏡頭與裝置建議）── */}
         <DeviceTipBanner />
+
+        {/* ── 治療師處方（優先於每日任務）── */}
+        <PrescriptionCard />
 
         {/* ── 今日任務（每日輪替，完成領養成資源）── */}
         <DailyQuestCard />
