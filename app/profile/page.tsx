@@ -41,6 +41,7 @@ const GAME_NAMES: Record<string, string> = {
   'pinch-sort':    '夾取分類',
   'balance-shift': '重心平衡',
   'wall-climb':    '爬牆挑戰',
+  'rhythm-step':   '節奏踏步',
 }
 
 export default function ProfilePage() {
