@@ -142,7 +142,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-slate-800">{greet}，{session.user.displayName}！</p>
-                  <p className="text-sm text-slate-500">{streak > 0 ? `🔥 已連續訓練 ${streak} 天，繼續保持！` : '今天來做一次復健訓練吧 💪'}</p>
+                  <p className="text-sm text-slate-500">{streak > 0 ? `🔥 已連續訓練 ${streak} 天，繼續保持！` : '今天來做一次復能訓練吧 💪'}</p>
                 </div>
               </div>
               <button onClick={() => router.push(rec.route)} className="w-full mt-3 py-3 rounded-xl text-white font-extrabold text-lg shadow active:scale-[0.98]" style={{ background: 'linear-gradient(90deg,#2563eb,#1769d6)' }}>
@@ -204,7 +204,7 @@ export default function HomePage() {
               <span className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 inline-block shrink-0">
                 {session.user.image ? <img src={session.user.image} alt="" className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full">🙂</span>}
               </span>
-              <span className="text-slate-400">分享今天的心情或復健心得…</span>
+              <span className="text-slate-400">分享今天的心情或訓練心得…</span>
             </button>
           ) : (
             <p className="text-sm text-slate-500">登入後可發文、為彼此加油 💪</p>
@@ -277,7 +277,10 @@ export default function HomePage() {
           </div>
         )}
 
-        <p className="text-center text-xs text-slate-400 py-3">LifeMotionXR · 中風上肢復能訓練平台</p>
+        <p className="text-center text-xs text-slate-400 py-3">
+          LifeMotionXR · 復能訓練平台（訓練輔助工具，非醫療器材）
+          <br /><a href="/privacy" className="underline">隱私權政策與免責聲明</a>
+        </p>
       </main>
     </div>
   )

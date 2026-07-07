@@ -7,7 +7,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'LifeMotionXR',
-  description: 'LifeMotionXR — 中風後上肢功能性復健訓練遊戲平台',
+  description: 'LifeMotionXR — 復能訓練遊戲平台（訓練輔助工具，非醫療器材）',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

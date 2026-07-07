@@ -92,7 +92,7 @@ export default function CommunityPage() {
               {session.user.image ? <img src={session.user.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">🙂</div>}
             </div>
             <textarea value={text} onChange={e => setText(e.target.value)} maxLength={500} rows={3}
-              placeholder="今天復健的心情或心得？想抒發什麼都可以…" className="flex-1 resize-none outline-none text-slate-800 placeholder:text-slate-400 bg-slate-50 rounded-xl p-3" />
+              placeholder="今天訓練的心情或心得？想抒發什麼都可以…" className="flex-1 resize-none outline-none text-slate-800 placeholder:text-slate-400 bg-slate-50 rounded-xl p-3" />
           </div>
           {myName && (
             <p className="text-xs text-slate-500 mt-2">

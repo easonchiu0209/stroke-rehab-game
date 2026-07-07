@@ -26,7 +26,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-center text-sm text-gray-400">
-          登入即代表同意訓練資料用於復健進度追蹤
+          登入即代表同意訓練資料用於進度追蹤（<a href="/privacy" className="underline text-slate-500">隱私權政策</a>）
         </p>
       </div>
 
