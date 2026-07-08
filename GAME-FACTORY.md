@@ -92,3 +92,46 @@ npm run build             # Next 編譯（完整驗證）
 - 復能釣魚王 (fishing-king, static) — 2026-06-18：目標偏下方，練前伸/向下搆取。（快玩版，仍可用 /fishing-king）
 - 復能水族箱 (aquarium, static + 養成) — 2026-06-18：釣魚 AR + 持久養魚（魚會長大產珍珠、解鎖魚種、擴缸、圖鑑）。表 aquarium/aquarium_fish，lib/aquarium.ts，API /api/aquarium(+shop)。首頁卡片由釣魚王改為水族箱。
 - 復能開心農場 (farm, 養成系統) — 2026-06-18：把 farm-harvest + pet-pat 合併升級成持久養成（種→長→收、金幣、商店、AR 照顧 session）。不是換皮，是自訂功能；資料表 farm / farm_plots，API /api/farm 與 /api/farm/shop，定義在 lib/farm.ts。舊的 farm-harvest、pet-pat 頁面已刪除。
+- 夾取分類 (pinch-sort, pinch — 精細動作) — 2026-06-26
+- 重心平衡 (balance-shift, pose — 站姿) — 2026-06-26：Pose 重心偵測＋安全須知頁。
+- 爬牆挑戰 (wall-climb, pose — 骨科 O1) — 2026-07-07：肩角度估算＋ROM 落庫＋疼痛 NRS。⚠️ 臨床審核待簽（見 §8）。
+- 節奏踏步 (rhythm-step, pose — 神經 N1 下肢) — 2026-07-07：節拍器＋抬腿偵測＋左右對稱。⚠️ 臨床審核待簽（見 §8）。
+
+## 7. 遊戲規格卡（新遊戲必填 — AI 指引 B 篇）
+
+每款新遊戲生成前先填一張規格卡（yaml），與程式一起 commit 到 `docs/clinical-review/<id>.md`：
+
+```yaml
+game_id:              # 例 wall-climb
+name:                 # 中文名
+category: neuro|ortho|cardio|peds
+clinical_goal:        # 訓練什麼能力，對應哪個臨床概念
+target_population:    # 適用對象與分期（Brunnstrom / 術後週數等）
+mechanics:            # 玩法一段話
+detection:            # 用哪些關節點、判定邏輯（角度/速度/節奏/位置）
+difficulty_params:    # 可調參數與範圍
+metrics:              # 存入哪些指標欄位
+compensation_rules:   # 代償偵測規則（無則寫「沿用全域 usePoseMonitor」或「不適用+原因」）
+contraindications:    # 禁忌與警示條件
+safety:               # 安全設計（坐姿/防跌/疼痛回報/角度上限）
+fun_layer:            # 視覺主題、juice、音效方向
+session_structure:    # 回合長度、休息、總時長
+```
+
+## 8. 臨床審核 checklist（上線前必過 — 臨床顧問簽核）
+
+新遊戲（或判定邏輯有變的舊遊戲）在開放給個案前，臨床顧問逐項簽核：
+
+- [ ] 判定邏輯符合動作學原理
+- [ ] 難度範圍對目標族群合理
+- [ ] 代償規則完整（或不適用的理由成立）
+- [ ] 禁忌與警示正確且會被看到
+- [ ] 指示語言個案聽得懂（長者視角）
+- [ ] 文案無醫療宣稱（對照 STYLE-GUIDE.md 禁用詞）
+
+簽核紀錄存 `docs/clinical-review/<id>.md`（規格卡＋checklist＋簽名/日期）。
+**現況**：wall-climb 與 rhythm-step 的審核草稿已備（待仲暘簽核），簽核前建議僅內部測試、不主動推廣給個案。
+
+## 9. 灰度上架
+
+臨床簽核後：先開 `available: true` 給 1–2 家友好機構試 2 週（觀察依從率、疼痛回報、治療師回饋），再全量放到首頁推薦位。
