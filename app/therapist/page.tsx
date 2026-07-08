@@ -43,6 +43,8 @@ interface WeeklyReport {
   therapist_summary: string | null
   generated_by: 'llm' | 'rules'
 }
+interface RomRecord { joint: string; motion: string; angle_deg: number; measured_at: string }
+const ROM_LABELS: Record<string, string> = { 'shoulder/flexion': '肩屈曲' }
 
 export default function TherapistPage() {
   const { status } = useSession()
@@ -52,6 +54,7 @@ export default function TherapistPage() {
   const [sel, setSel] = useState<Patient | null>(null)
   const [sessions, setSessions] = useState<Sess[] | null>(null)
   const [reports, setReports] = useState<WeeklyReport[]>([])
+  const [rom, setRom] = useState<RomRecord[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') signIn('line')
@@ -70,6 +73,7 @@ export default function TherapistPage() {
     fetch(`/api/therapist?userId=${p.id}`).then(r => r.json()).then(d => {
       setSessions(d.sessions ?? [])
       setReports(d.reports ?? [])
+      setRom(d.rom ?? [])
     })
   }, [])
 
@@ -99,7 +103,7 @@ export default function TherapistPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 flex flex-col items-center gap-5">
-      <div className="w-full max-w-3xl flex items-center justify-between">
+      <div className="w-full max-w-3xl flex items-center justify-between print-hide">
         <button onClick={() => router.push('/')} className="text-gray-500 font-semibold">← 首頁</button>
         <h1 className="text-xl font-extrabold text-slate-800">🩺 治療師後台</h1>
         <span className="text-sm text-gray-400">{patients.length} 位個案</span>
@@ -135,7 +139,7 @@ export default function TherapistPage() {
           ))}
         </div>
       ) : (
-        <Detail patient={sel} sessions={sessions} reports={reports} onBack={() => { setSel(null); setSessions(null) }} onExport={exportCsv} />
+        <Detail patient={sel} sessions={sessions} reports={reports} rom={rom} onBack={() => { setSel(null); setSessions(null) }} onExport={exportCsv} />
       )}
     </main>
   )
@@ -188,7 +192,7 @@ function RxSection({ patientId }: { patientId: string }) {
       <p className="font-bold text-slate-800 mb-3">📋 訓練處方</p>
 
       {/* 開立表單 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 print-hide">
         <select value={game} onChange={e => setGame(e.target.value)} className="border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-slate-700 bg-slate-50">
           {Object.entries(GAME_INFO).map(([id, g]) => <option key={id} value={id}>{g.emoji} {g.name}</option>)}
         </select>
@@ -207,7 +211,7 @@ function RxSection({ patientId }: { patientId: string }) {
       </div>
       <input value={note} onChange={e => setNote(e.target.value)} maxLength={200}
         placeholder="備註（選填，個案端會看到，例：用患側手、慢慢來）"
-        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50 mb-3" />
+        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50 mb-3 print-hide" />
 
       {/* 有效處方列表 */}
       {rxs === null ? <p className="text-sm text-slate-400">載入中…</p>
@@ -227,7 +231,7 @@ function RxSection({ patientId }: { patientId: string }) {
                     </p>
                     {r.note && <p className="text-xs text-slate-400">💬 {r.note}</p>}
                   </div>
-                  <button onClick={() => deactivate(r.id)} className="text-xs font-bold text-red-400 hover:text-red-600 shrink-0">停用</button>
+                  <button onClick={() => deactivate(r.id)} className="text-xs font-bold text-red-400 hover:text-red-600 shrink-0 print-hide">停用</button>
                 </div>
               )
             })}
@@ -241,8 +245,8 @@ function Center({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen flex items-center justify-center text-gray-500 text-lg text-center px-6">{children}</div>
 }
 
-function Detail({ patient, sessions, reports, onBack, onExport }: {
-  patient: Patient; sessions: Sess[] | null; reports: WeeklyReport[]; onBack: () => void; onExport: () => void
+function Detail({ patient, sessions, reports, rom, onBack, onExport }: {
+  patient: Patient; sessions: Sess[] | null; reports: WeeklyReport[]; rom: RomRecord[]; onBack: () => void; onExport: () => void
 }) {
   if (!sessions) return <Center>載入記錄中…</Center>
 
@@ -272,10 +276,20 @@ function Detail({ patient, sessions, reports, onBack, onExport }: {
 
   return (
     <div className="w-full max-w-3xl flex flex-col gap-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 print-hide">
         <button onClick={onBack} className="text-gray-500 font-semibold">← 個案清單</button>
         <div className="flex-1" />
+        <button onClick={() => window.print()} className="px-4 py-1.5 rounded-xl bg-sky-700 text-white text-sm font-bold">🖨 列印報告</button>
         <button onClick={onExport} className="px-4 py-1.5 rounded-xl bg-slate-800 text-white text-sm font-bold">⬇ 匯出 CSV</button>
+      </div>
+
+      {/* 列印版報告抬頭（僅列印時顯示） */}
+      <div className="print-only">
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>LifeMotionXR 訓練進度報告</h1>
+        <p style={{ fontSize: 12, color: '#64748b' }}>
+          個案：{patient.display_name}　報告產出：{new Date().toLocaleDateString('zh-TW')}
+          數據為鏡頭估算，僅供訓練參考，非醫療量測。AI 輔助生成內容需治療師審閱。
+        </p>
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm flex items-center gap-4">
@@ -290,6 +304,36 @@ function Detail({ patient, sessions, reports, onBack, onExport }: {
 
       {/* 訓練處方 */}
       <RxSection patientId={patient.id} />
+
+      {/* ROM 活動度紀錄（骨科遊戲量測；表未建時自動隱藏） */}
+      {rom.length > 0 && (() => {
+        const byKey = new Map<string, RomRecord[]>()
+        for (const r of rom) {
+          const k = `${r.joint}/${r.motion}`
+          byKey.set(k, [...(byKey.get(k) ?? []), r])
+        }
+        return (
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <p className="font-bold text-slate-800 mb-3">📐 活動度（ROM）紀錄 <span className="text-[10px] text-slate-400 font-normal">鏡頭估算，非醫療量測</span></p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Array.from(byKey.entries()).map(([k, recs]) => {
+                const best = Math.max(...recs.map(r => r.angle_deg))
+                const latest = recs[0]
+                return (
+                  <div key={k} className="border border-slate-100 rounded-xl p-3 bg-slate-50/60">
+                    <p className="text-sm font-bold text-slate-700">{ROM_LABELS[k] ?? k}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      歷史最佳 <span className="font-black text-sky-700 text-base">{Math.round(best)}°</span>
+                      　最近 {Math.round(latest.angle_deg)}°（{new Date(latest.measured_at).toLocaleDateString('zh-TW')}）
+                      　共 {recs.length} 筆
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 每週摘要（LLM 週報治療師版草稿） */}
       {reports.length > 0 && (

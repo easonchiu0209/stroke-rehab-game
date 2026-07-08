@@ -35,6 +35,17 @@
   }
 }
 
+/* ── 列印報告（治療師後台 → 瀏覽器列印 → PDF）──────────────── */
+.print-only { display: none; }
+@media print {
+  .print-hide { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: #fff !important; }
+  main { padding: 0 !important; background: #fff !important; }
+  .rounded-2xl { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+  @page { size: A4; margin: 14mm; }
+}
+
 /* ── Game Juice 共用動畫（目標物出現/消失的擠壓回彈）───────────── */
 @keyframes juicePopIn {
   0%   { transform: scale(0); }

@@ -18,16 +18,19 @@ export async function GET(req: NextRequest) {
 
   const userId = req.nextUrl.searchParams.get('userId')
 
-  // ── 單一個案的所有訓練記錄 + 每週摘要 ─────────────────────
+  // ── 單一個案的所有訓練記錄 + 每週摘要 + ROM ───────────────
   if (userId) {
-    const [{ data: patient }, { data: sessions }, { data: reports }] = await Promise.all([
+    const [{ data: patient }, { data: sessions }, { data: reports }, { data: rom }] = await Promise.all([
       supabaseAdmin.from('users').select('id, display_name, picture_url, total_points, created_at').eq('id', userId).single(),
       supabaseAdmin.from('game_sessions').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
       supabaseAdmin.from('weekly_reports')
         .select('week_start, therapist_summary, generated_by, created_at')
         .eq('user_id', userId).order('week_start', { ascending: false }).limit(12),
+      supabaseAdmin.from('rom_records')   // 表未建（SQL 待套用）時 data 為 null，前端優雅降級
+        .select('joint, motion, angle_deg, measured_at')
+        .eq('user_id', userId).order('measured_at', { ascending: false }).limit(30),
     ])
-    return NextResponse.json({ patient, sessions: sessions ?? [], reports: reports ?? [] })
+    return NextResponse.json({ patient, sessions: sessions ?? [], reports: reports ?? [], rom: rom ?? [] })
   }
 
   // ── 個案清單 + 摘要 ───────────────────────────────────────
