@@ -28,6 +28,7 @@ const GAMES: GameCardData[] = [
   { id: 'balance-shift', emoji: '⚖️', title: '重心平衡', subtitle: '站姿重心控制', level: 'Level 5', levelBadge: 'bg-cyan-100 text-cyan-800', description: '站著左右轉移重心控制接籃，訓練站姿平衡、患側負重與軀幹控制（站立訓練，需注意安全）', route: '/balance-shift', available: true },
   { id: 'wall-climb', emoji: '🧗', title: '爬牆挑戰', subtitle: '肩關節活動度（骨科）', level: 'Level 1–3', levelBadge: 'bg-sky-100 text-sky-800', description: '抬手帶小登山者爬上山頂，即時估算肩關節角度，突破自己的紀錄。五十肩、肩部術後訓練導向', route: '/wall-climb', available: true },
   { id: 'rhythm-step', emoji: '🥁', title: '節奏踏步', subtitle: '下肢節奏與左右協調', level: 'Level 1–3', levelBadge: 'bg-orange-100 text-orange-800', description: '跟著鼓聲節拍左右抬腿踏步，訓練下肢力量、步態節奏與左右對稱（坐姿可玩，安全優先）', route: '/rhythm-step', available: true },
+  { id: 'sit-to-stand', emoji: '🪑', title: '坐到站', subtitle: '下肢肌力（骨科）', level: '30 秒挑戰', levelBadge: 'bg-teal-100 text-teal-800', description: '30 秒內完成越多次坐站越好，訓練下肢肌力與起身能力（需穩固椅子，建議陪同）', route: '/sit-to-stand', available: true },
 ]
 
 const BANNERS = [

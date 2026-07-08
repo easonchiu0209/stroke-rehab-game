@@ -42,6 +42,7 @@ const GAME_NAMES: Record<string, string> = {
   'balance-shift': '重心平衡',
   'wall-climb':    '爬牆挑戰',
   'rhythm-step':   '節奏踏步',
+  'sit-to-stand':  '坐到站',
 }
 
 export default function ProfilePage() {
