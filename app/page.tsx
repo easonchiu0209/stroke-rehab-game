@@ -119,6 +119,17 @@ export default function HomePage() {
         {/* ── 本週進步卡（LLM 週報個案版）── */}
         <WeeklyReportCard />
 
+        {/* ── 家人分享卡入口 ── */}
+        <button onClick={() => router.push('/share-card')}
+          className="w-full bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl shadow-sm p-4 border border-amber-200 flex items-center gap-3 active:scale-[0.98] transition-all text-left">
+          <span className="text-3xl">🎁</span>
+          <span className="flex-1">
+            <span className="block font-extrabold text-amber-900">做一張成績單給家人看</span>
+            <span className="block text-xs text-amber-700">把這個月的努力變成卡片，一鍵傳 LINE</span>
+          </span>
+          <span className="text-amber-400 text-xl">›</span>
+        </button>
+
         {/* ── 限時動態（快速開始）── */}
         <div className="bg-white rounded-2xl shadow-sm p-3">
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
