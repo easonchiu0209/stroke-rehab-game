@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import MonthlyBadgeCard from '@/components/home/MonthlyBadgeCard'
 
 interface Achievement {
   id:          string
@@ -109,6 +110,9 @@ export default function ProfilePage() {
         </div>
         <button onClick={() => signOut()} className="text-sm text-gray-400 hover:text-gray-600">登出</button>
       </div>
+
+      {/* 月度徽章牆 */}
+      <div className="w-full max-w-lg"><MonthlyBadgeCard /></div>
 
       {/* Nickname */}
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-sm p-4">

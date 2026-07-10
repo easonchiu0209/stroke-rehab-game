@@ -6,6 +6,7 @@ import { awardDailyBonuses } from '@/lib/serverPoints'
 import { saveMotionData } from '@/lib/serverMotion'
 import { grantHubDrop } from '@/lib/serverDrop'
 import { generateCoach } from '@/lib/serverCoach'
+import { checkAndAwardMonthlyBadge } from '@/lib/monthlyBadge'
 
 // Points formula
 function calcPoints(score: number, accuracy: number, difficulty: string): number {
@@ -131,11 +132,14 @@ export async function POST(req: NextRequest) {
   // 獎勵回流 hub：掉落農場金幣/水族珍珠（變動獎勵）
   const drop = await grantHubDrop(session.user.id, accuracy)
 
+  // 月度挑戰徽章：當月滿 20 天即頒發（冪等）
+  const newMonthlyBadge = await checkAndAwardMonthlyBadge(session.user.id)
+
   // 場末即時 AI 教練（LLM 逾時/失敗自動退規則式，不拖慢存檔）
   const coach = await generateCoach({
     userId: session.user.id, gameType: game_type, difficulty,
     hits, misses, accuracy, ddaChange: dda?.difficulty_changed ?? 0,
   })
 
-  return NextResponse.json({ session_id: savedSession.id, points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda, drop, coach })
+  return NextResponse.json({ session_id: savedSession.id, points_earned: points, new_achievements: newAchievements, daily_bonus: daily.bonus, daily_parts: daily.parts, streak: daily.streak, dda, drop, coach, monthly_badge: newMonthlyBadge })
 }

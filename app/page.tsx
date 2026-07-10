@@ -7,6 +7,7 @@ import DeviceTipBanner from '@/components/shared/DeviceTipBanner'
 import WeeklyReportCard from '@/components/home/WeeklyReportCard'
 import DailyQuestCard from '@/components/home/DailyQuestCard'
 import PrescriptionCard from '@/components/home/PrescriptionCard'
+import MonthlyBadgeCard from '@/components/home/MonthlyBadgeCard'
 
 interface GameCardData {
   id: string; emoji: string; title: string; subtitle: string
@@ -115,6 +116,9 @@ export default function HomePage() {
 
         {/* ── 今日任務（每日輪替，完成領養成資源）── */}
         <DailyQuestCard />
+
+        {/* ── 本月全勤挑戰（月度限定徽章）── */}
+        <MonthlyBadgeCard />
 
         {/* ── 本週進步卡（LLM 週報個案版）── */}
         <WeeklyReportCard />
