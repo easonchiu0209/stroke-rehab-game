@@ -46,6 +46,27 @@ interface WeeklyReport {
 interface RomRecord { joint: string; motion: string; angle_deg: number; measured_at: string }
 const ROM_LABELS: Record<string, string> = { 'shoulder/flexion': '肩屈曲' }
 
+interface ProgressInsight {
+  dimension: 'accuracy' | 'reaction' | 'rom_y' | 'smoothness'
+  trend: 'improving' | 'flat' | 'declining' | 'insufficient'
+  delta: number | null
+  flag: 'plateau' | 'decline_alert' | null
+  detail: { half1: number | null; half2: number | null; activeDays: number }
+  computed_at: string
+}
+const DIM_LABELS: Record<ProgressInsight['dimension'], { name: string; unit: string }> = {
+  accuracy:   { name: '命中率',   unit: '%' },
+  reaction:   { name: '反應時間', unit: 'ms' },
+  rom_y:      { name: '垂直伸展', unit: '' },
+  smoothness: { name: '動作平滑', unit: '' },
+}
+const TREND_UI: Record<ProgressInsight['trend'], { icon: string; cls: string; label: string }> = {
+  improving:    { icon: '⬆️', cls: 'text-emerald-600', label: '進步' },
+  flat:         { icon: '➡️', cls: 'text-slate-500',   label: '持平' },
+  declining:    { icon: '⬇️', cls: 'text-red-500',     label: '退步' },
+  insufficient: { icon: '·',  cls: 'text-slate-300',   label: '資料不足' },
+}
+
 export default function TherapistPage() {
   const { status } = useSession()
   const router = useRouter()
@@ -55,6 +76,7 @@ export default function TherapistPage() {
   const [sessions, setSessions] = useState<Sess[] | null>(null)
   const [reports, setReports] = useState<WeeklyReport[]>([])
   const [rom, setRom] = useState<RomRecord[]>([])
+  const [insights, setInsights] = useState<ProgressInsight[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') signIn('line')
@@ -74,6 +96,7 @@ export default function TherapistPage() {
       setSessions(d.sessions ?? [])
       setReports(d.reports ?? [])
       setRom(d.rom ?? [])
+      setInsights(d.insights ?? [])
     })
   }, [])
 
@@ -139,7 +162,7 @@ export default function TherapistPage() {
           ))}
         </div>
       ) : (
-        <Detail patient={sel} sessions={sessions} reports={reports} rom={rom} onBack={() => { setSel(null); setSessions(null) }} onExport={exportCsv} />
+        <Detail patient={sel} sessions={sessions} reports={reports} rom={rom} insights={insights} onBack={() => { setSel(null); setSessions(null) }} onExport={exportCsv} />
       )}
     </main>
   )
@@ -245,8 +268,8 @@ function Center({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen flex items-center justify-center text-gray-500 text-lg text-center px-6">{children}</div>
 }
 
-function Detail({ patient, sessions, reports, rom, onBack, onExport }: {
-  patient: Patient; sessions: Sess[] | null; reports: WeeklyReport[]; rom: RomRecord[]; onBack: () => void; onExport: () => void
+function Detail({ patient, sessions, reports, rom, insights, onBack, onExport }: {
+  patient: Patient; sessions: Sess[] | null; reports: WeeklyReport[]; rom: RomRecord[]; insights: ProgressInsight[]; onBack: () => void; onExport: () => void
 }) {
   if (!sessions) return <Center>載入記錄中…</Center>
 
@@ -304,6 +327,43 @@ function Detail({ patient, sessions, reports, rom, onBack, onExport }: {
 
       {/* 訓練處方 */}
       <RxSection patientId={patient.id} />
+
+      {/* AI 進步追蹤（每週一自動掃描；可解釋：前後兩週平均比較） */}
+      {insights.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-bold text-slate-800">📈 進步追蹤</p>
+            <span className="text-[10px] text-slate-400">AI 每週分析 · {insights[0]?.computed_at} · 依據：近 4 週前後兩半平均比較</span>
+          </div>
+          {insights.some(i => i.flag === 'decline_alert') && (
+            <p className="text-sm font-bold text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-2">
+              🔴 異常退步警示：近幾日表現明顯下滑，建議聯繫個案了解狀況（生病/疼痛/情緒）
+            </p>
+          )}
+          {insights.some(i => i.flag === 'plateau') && (
+            <p className="text-sm font-bold text-amber-700 bg-amber-50 rounded-xl px-3 py-2 mb-2">
+              🟡 平原期：訓練頻率足夠但各項指標持平 2 週以上，建議評估調整訓練策略（換遊戲類型/調難度）
+            </p>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+            {insights.map(i => {
+              const dim = DIM_LABELS[i.dimension]
+              const ui = TREND_UI[i.trend]
+              return (
+                <div key={i.dimension} className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 text-center">
+                  <p className="text-xs text-slate-500 font-semibold">{dim.name}</p>
+                  <p className={`text-xl font-black ${ui.cls}`}>{ui.icon} {ui.label}</p>
+                  {i.delta != null && i.trend !== 'insufficient' && (
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {i.detail.half1}{dim.unit} → {i.detail.half2}{dim.unit}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ROM 活動度紀錄（骨科遊戲量測；表未建時自動隱藏） */}
       {rom.length > 0 && (() => {

@@ -30,7 +30,16 @@ export async function GET(req: NextRequest) {
         .select('joint, motion, angle_deg, measured_at')
         .eq('user_id', userId).order('measured_at', { ascending: false }).limit(30),
     ])
-    return NextResponse.json({ patient, sessions: sessions ?? [], reports: reports ?? [], rom: rom ?? [] })
+    // AI 進步追蹤（最新一次掃描；表未建時優雅降級）
+    const { data: latestScan } = await supabaseAdmin.from('progress_insights')
+      .select('computed_at').eq('user_id', userId)
+      .order('computed_at', { ascending: false }).limit(1).maybeSingle()
+    const { data: insights } = latestScan
+      ? await supabaseAdmin.from('progress_insights')
+          .select('dimension, trend, delta, flag, detail, computed_at')
+          .eq('user_id', userId).eq('computed_at', latestScan.computed_at)
+      : { data: [] }
+    return NextResponse.json({ patient, sessions: sessions ?? [], reports: reports ?? [], rom: rom ?? [], insights: insights ?? [] })
   }
 
   // ── 個案清單 + 摘要 ───────────────────────────────────────

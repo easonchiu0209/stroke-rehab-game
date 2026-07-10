@@ -30,13 +30,18 @@ export async function GET() {
 
   const ids = (rows ?? []).map(r => r.id)
   const cheerMap = new Map<string, { count: number; mine: boolean }>()
+  const commentCount = new Map<string, number>()
   if (ids.length) {
-    const { data: cheers } = await supabaseAdmin.from('post_cheers').select('post_id, user_id').in('post_id', ids)
+    const [{ data: cheers }, { data: comments }] = await Promise.all([
+      supabaseAdmin.from('post_cheers').select('post_id, user_id').in('post_id', ids),
+      supabaseAdmin.from('post_comments').select('post_id').in('post_id', ids),   // 表未建時 data=null，優雅降級
+    ])
     for (const c of cheers ?? []) {
       const e = cheerMap.get(c.post_id) ?? { count: 0, mine: false }
       e.count++; if (c.user_id === me) e.mine = true
       cheerMap.set(c.post_id, e)
     }
+    for (const c of comments ?? []) commentCount.set(c.post_id, (commentCount.get(c.post_id) ?? 0) + 1)
   }
 
   const posts = (rows ?? []).map(r => {
@@ -46,6 +51,7 @@ export async function GET() {
       id: r.id, content: r.content, visibility: r.visibility, created_at: r.created_at,
       author_name: author?.nickname || author?.display_name || '使用者', author_pic: author?.picture_url ?? null,
       cheers: c.count, cheeredByMe: c.mine, isMine: r.user_id === me,
+      comment_count: commentCount.get(r.id) ?? 0,
     }
   })
   return NextResponse.json({ posts, myName, hasNickname })

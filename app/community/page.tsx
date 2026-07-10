@@ -7,6 +7,12 @@ import { useSession, signIn } from 'next-auth/react'
 interface Post {
   id: string; content: string; visibility: 'public' | 'private'; created_at: string
   author_name: string; author_pic: string | null; cheers: number; cheeredByMe: boolean; isMine: boolean
+  comment_count?: number
+}
+
+interface Comment {
+  id: string; content: string; created_at: string
+  author_name: string; author_pic: string | null; isMine: boolean
 }
 
 function timeAgo(iso: string) {
@@ -62,6 +68,52 @@ export default function CommunityPage() {
       setBusy(false)
     }
   }
+  // ── 留言 ──────────────────────────────────────────────
+  const [openComments, setOpenComments] = useState<string | null>(null)
+  const [comments, setComments] = useState<Comment[] | null>(null)
+  const [commentText, setCommentText] = useState('')
+  const [commentBusy, setCommentBusy] = useState(false)
+
+  async function loadComments(postId: string) {
+    setComments(null)
+    const res = await fetch(`/api/posts/comments?postId=${postId}`)
+    const d = await res.json().catch(() => null)
+    setComments(res.ok ? (d?.comments ?? []) : [])
+  }
+
+  function toggleComments(postId: string) {
+    if (openComments === postId) { setOpenComments(null); return }
+    setOpenComments(postId)
+    setCommentText('')
+    void loadComments(postId)
+  }
+
+  async function submitComment(postId: string) {
+    const content = commentText.trim()
+    if (!content || commentBusy) return
+    setCommentBusy(true)
+    try {
+      const res = await fetch('/api/posts/comments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: postId, content }),
+      })
+      if (res.ok) {
+        setCommentText('')
+        await loadComments(postId)
+        setPosts(prev => prev?.map(x => x.id === postId ? { ...x, comment_count: (x.comment_count ?? 0) + 1 } : x) ?? null)
+      } else {
+        const d = await res.json().catch(() => null)
+        alert(d?.error ?? '留言失敗，請稍後再試')
+      }
+    } finally { setCommentBusy(false) }
+  }
+
+  async function delComment(postId: string, id: string) {
+    await fetch(`/api/posts/comments?id=${id}`, { method: 'DELETE' })
+    await loadComments(postId)
+    setPosts(prev => prev?.map(x => x.id === postId ? { ...x, comment_count: Math.max(0, (x.comment_count ?? 1) - 1) } : x) ?? null)
+  }
+
   async function cheer(p: Post) {
     setPosts(prev => prev?.map(x => x.id === p.id ? { ...x, cheeredByMe: !x.cheeredByMe, cheers: x.cheers + (x.cheeredByMe ? -1 : 1) } : x) ?? null)
     await fetch('/api/posts/react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: p.id }) })
@@ -129,7 +181,39 @@ export default function CommunityPage() {
                 <button onClick={() => cheer(p)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${p.cheeredByMe ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
                   💪 加油 {p.cheers > 0 && <span>{p.cheers}</span>}
                 </button>
+                <button onClick={() => toggleComments(p.id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${openComments === p.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                  💬 留言 {(p.comment_count ?? 0) > 0 && <span>{p.comment_count}</span>}
+                </button>
               </div>
+
+              {/* 留言區 */}
+              {openComments === p.id && (
+                <div className="mt-3 border-t border-slate-100 pt-3 flex flex-col gap-2">
+                  {comments === null ? <p className="text-xs text-slate-400">載入留言…</p>
+                    : comments.length === 0 ? <p className="text-xs text-slate-400">還沒有留言，說句話鼓勵一下吧！</p>
+                    : comments.map(c => (
+                      <div key={c.id} className="flex items-start gap-2">
+                        <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-200 shrink-0">
+                          {c.author_pic ? <img src={c.author_pic} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs">🙂</div>}
+                        </div>
+                        <div className="flex-1 min-w-0 bg-slate-50 rounded-xl px-3 py-2">
+                          <p className="text-xs font-bold text-slate-600">{c.author_name} <span className="font-normal text-slate-400">· {timeAgo(c.created_at)}</span></p>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.content}</p>
+                        </div>
+                        {c.isMine && (
+                          <button onClick={() => delComment(p.id, c.id)} className="text-slate-300 hover:text-red-500 text-xs shrink-0 mt-1">刪除</button>
+                        )}
+                      </div>
+                    ))}
+                  <div className="flex gap-2 mt-1">
+                    <input value={commentText} onChange={e => setCommentText(e.target.value)} maxLength={200}
+                      placeholder="留句話鼓勵他…" onKeyDown={e => { if (e.key === 'Enter') submitComment(p.id) }}
+                      className="flex-1 bg-slate-50 rounded-full px-4 py-2 text-sm text-slate-800 outline-none border border-slate-100 focus:border-blue-300" />
+                    <button onClick={() => submitComment(p.id)} disabled={!commentText.trim() || commentBusy}
+                      className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-bold disabled:opacity-40 active:scale-95">送出</button>
+                  </div>
+                </div>
+              )}
             </article>
           ))}
       </main>
