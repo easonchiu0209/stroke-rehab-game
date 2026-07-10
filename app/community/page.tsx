@@ -13,7 +13,7 @@ interface Post {
 }
 
 // 頭像框樣式（榮譽層獎勵）
-export const FRAME_RING: Record<string, string> = {
+const FRAME_RING: Record<string, string> = {
   bronze: 'ring-2 ring-amber-600',
   silver: 'ring-2 ring-slate-400',
   gold:   'ring-[3px] ring-yellow-400',
