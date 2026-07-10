@@ -8,6 +8,14 @@ interface LeaderEntry {
   display_name: string
   picture_url:  string | null
   total_points: number
+  title?: string | null
+  avatar_frame?: string | null
+}
+
+const FRAME_RING: Record<string, string> = {
+  bronze: 'ring-2 ring-amber-600',
+  silver: 'ring-2 ring-slate-400',
+  gold:   'ring-[3px] ring-yellow-400',
 }
 
 interface WinnerEntry extends LeaderEntry { rank: number; reward: number }
@@ -111,14 +119,17 @@ export default function LeaderboardPage() {
                 <div className="text-3xl w-10 text-center font-black">
                   {idx < 3 ? medals[idx] : <span className="text-xl text-gray-400">{idx + 1}</span>}
                 </div>
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shrink-0">
+                <div className={`w-12 h-12 rounded-full overflow-hidden bg-gray-200 shrink-0 ${entry.avatar_frame ? FRAME_RING[entry.avatar_frame] ?? '' : ''}`}>
                   {entry.picture_url
                     ? <img src={entry.picture_url} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-2xl">🙂</div>
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 truncate">{entry.display_name}</p>
+                  <p className="font-bold text-gray-900 truncate">
+                    {entry.display_name}
+                    {entry.title && <span className="ml-1.5 text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full align-middle">{entry.title}</span>}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-black text-orange-600">{entry.total_points.toLocaleString()}</p>

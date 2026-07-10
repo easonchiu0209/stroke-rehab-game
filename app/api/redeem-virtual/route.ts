@@ -4,35 +4,56 @@ import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SPECIES } from '@/lib/farm'
 import { FISHES } from '@/lib/aquarium'
+import { grantResources } from '@/lib/serverDrop'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// 稀有解鎖券：用「訓練積分」直接解鎖高階物種（平常要存金幣/珍珠慢慢買）。
-// 定價 = 遊戲幣解鎖價 × 1.5（積分較易賺，稍貴保持金幣路徑的價值）。
-// 平台獎勵經濟決策（2026-07-06）：積分兌換以平台內虛擬獎勵為主。
+// 虛擬獎勵中心（獎勵體系決策 2026-07-09：五層階梯）
+// - 解鎖券（收集層）：積分直接解鎖高階農場/水族物種
+// - 驚喜蛋（即時爽感層，20 分可重複）：隨機金幣/珍珠/5–10% 限定裝飾
+// - 稱號/頭像框（榮譽層）：掛在社群與排行榜名旁
+// 榮譽層欄位未建（supabase-rewards2.sql 待套用）時：目錄照列、兌換回明確錯誤。
 
 interface CatalogItem {
-  kind: 'farm' | 'fish'
+  kind: 'farm' | 'fish' | 'egg' | 'title' | 'frame'
   id: string
   name: string
   emoji: string
   points: number
+  repeatable?: boolean
+  desc?: string
 }
 
 const FARM_IDS = ['grape', 'apple', 'watermelon', 'pineapple', 'turkey', 'horse']
 const FISH_IDS = ['dolphin', 'shark', 'crocodile', 'whale']
 
+const TITLES: CatalogItem[] = [
+  { kind: 'title', id: 'title:star',    name: '勤練之星', emoji: '⭐', points: 300, desc: '稱號會顯示在社群與排行榜你的名字旁' },
+  { kind: 'title', id: 'title:veteran', name: '百場老將', emoji: '🎖️', points: 800, desc: '資深訓練者的榮譽' },
+]
+const FRAMES: CatalogItem[] = [
+  { kind: 'frame', id: 'frame:bronze', name: '銅色頭像框', emoji: '🥉', points: 300 },
+  { kind: 'frame', id: 'frame:silver', name: '銀色頭像框', emoji: '🥈', points: 600 },
+  { kind: 'frame', id: 'frame:gold',   name: '金色頭像框', emoji: '🥇', points: 1000 },
+]
+const EGG: CatalogItem = { kind: 'egg', id: 'egg', name: '驚喜蛋', emoji: '🎲', points: 20, repeatable: true, desc: '隨機開出金幣、珍珠，或稀有限定裝飾！' }
+const DECOS = [
+  { id: 'deco:lantern', name: '紅燈籠', emoji: '🏮' },
+  { id: 'deco:chime',   name: '風鈴',   emoji: '🎐' },
+  { id: 'deco:bonsai',  name: '小盆栽', emoji: '🪴' },
+]
+
 function buildCatalog(): CatalogItem[] {
   const farm = FARM_IDS.map(id => {
     const s = SPECIES[id as keyof typeof SPECIES]
     return s && { kind: 'farm' as const, id, name: s.name, emoji: s.stages[s.stages.length - 1], points: Math.ceil(s.unlockCost * 1.5) }
-  })
+  }).filter(Boolean) as CatalogItem[]
   const fish = FISH_IDS.map(id => {
     const f = FISHES[id as keyof typeof FISHES]
     return f && { kind: 'fish' as const, id, name: f.name, emoji: f.emoji, points: Math.ceil(f.unlockCost * 1.5) }
-  })
-  return [...farm, ...fish].filter(Boolean) as CatalogItem[]
+  }).filter(Boolean) as CatalogItem[]
+  return [EGG, ...TITLES, ...FRAMES, ...farm, ...fish]
 }
 
 async function getOwned(userId: string) {
@@ -40,12 +61,26 @@ async function getOwned(userId: string) {
     supabaseAdmin.from('farm').select('unlocked').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('aquarium').select('unlocked').eq('user_id', userId).maybeSingle(),
   ])
+  // 榮譽欄位獨立查詢（欄位未建時吞錯 → 視為未擁有）
+  let items: string[] = []
+  try {
+    const { data } = await supabaseAdmin.from('users').select('owned_items').eq('id', userId).maybeSingle()
+    if (Array.isArray(data?.owned_items)) items = data.owned_items as string[]
+  } catch { /* 欄位未建 */ }
   return {
     farm: new Set<string>((farm?.unlocked as string[]) ?? []),
     fish: new Set<string>((aq?.unlocked as string[]) ?? []),
+    items: new Set<string>(items),
     hasFarm: !!farm,
     hasAquarium: !!aq,
   }
+}
+
+function isOwned(c: CatalogItem, o: Awaited<ReturnType<typeof getOwned>>): boolean {
+  if (c.repeatable) return false
+  if (c.kind === 'farm') return o.farm.has(c.id)
+  if (c.kind === 'fish') return o.fish.has(c.id)
+  return o.items.has(c.id)
 }
 
 // 目錄 + 已擁有狀態
@@ -56,15 +91,10 @@ export async function GET() {
     return NextResponse.json({ items: catalog.map(c => ({ ...c, owned: false })) })
   }
   const owned = await getOwned(session.user.id)
-  return NextResponse.json({
-    items: catalog.map(c => ({
-      ...c,
-      owned: c.kind === 'farm' ? owned.farm.has(c.id) : owned.fish.has(c.id),
-    })),
-  })
+  return NextResponse.json({ items: catalog.map(c => ({ ...c, owned: isOwned(c, owned) })) })
 }
 
-// 用積分解鎖
+// 兌換
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -75,15 +105,65 @@ export async function POST(req: NextRequest) {
   if (!item) return NextResponse.json({ error: '無此獎勵' }, { status: 400 })
 
   const owned = await getOwned(userId)
-  const already = item.kind === 'farm' ? owned.farm.has(item.id) : owned.fish.has(item.id)
-  if (already) return NextResponse.json({ error: '已經解鎖過了' }, { status: 400 })
+  if (isOwned(item, owned)) return NextResponse.json({ error: '已經擁有了' }, { status: 400 })
 
   const { data: user } = await supabaseAdmin.from('users').select('total_points').eq('id', userId).single()
   if (!user || user.total_points < item.points) {
     return NextResponse.json({ error: `積分不足（需要 ${item.points}）` }, { status: 400 })
   }
 
-  // 扣積分 → 寫入 unlocked（hub 列不存在時，玩過任一遊戲就會有；保險起見仍處理缺列）
+  // ── 驚喜蛋：先開獎再扣分入帳（一次交易語意：開獎純計算） ──
+  if (item.kind === 'egg') {
+    const roll = Math.random()
+    let prize: { type: 'coins' | 'pearls' | 'deco'; amount?: number; deco?: typeof DECOS[number] }
+    const unownedDecos = DECOS.filter(d => !owned.items.has(d.id))
+    if (roll < 0.10 && unownedDecos.length) {
+      prize = { type: 'deco', deco: unownedDecos[Math.floor(Math.random() * unownedDecos.length)] }
+    } else if (roll < 0.40) {
+      prize = { type: 'pearls', amount: 2 + Math.floor(Math.random() * 3) }
+    } else {
+      prize = { type: 'coins', amount: 8 + Math.floor(Math.random() * 8) }
+    }
+
+    await supabaseAdmin.rpc('increment_points', { uid: userId, delta: -item.points })
+    await supabaseAdmin.from('point_logs').insert({
+      user_id: userId, amount: -item.points, source: 'redeem',
+      description: `🎲 驚喜蛋：${prize.type === 'deco' ? `限定裝飾 ${prize.deco!.emoji}${prize.deco!.name}` : prize.type === 'pearls' ? `珍珠 ×${prize.amount}` : `金幣 ×${prize.amount}`}`,
+    })
+    if (prize.type === 'coins') await grantResources(userId, prize.amount!, 0)
+    else if (prize.type === 'pearls') await grantResources(userId, 0, prize.amount!)
+    else {
+      const { error } = await supabaseAdmin.from('users')
+        .update({ owned_items: Array.from(owned.items).concat(prize.deco!.id) }).eq('id', userId)
+      if (error) { // 欄位未建：退回改發金幣，不吃掉使用者的分
+        await grantResources(userId, 20, 0)
+        prize = { type: 'coins', amount: 20 }
+      }
+    }
+    const { data: after } = await supabaseAdmin.from('users').select('total_points').eq('id', userId).single()
+    return NextResponse.json({ ok: true, egg: prize, remainingPoints: after?.total_points ?? 0 })
+  }
+
+  // ── 稱號 / 頭像框 ──
+  if (item.kind === 'title' || item.kind === 'frame') {
+    const patch: Record<string, unknown> = { owned_items: Array.from(owned.items).concat(item.id) }
+    if (item.kind === 'title') patch.title = item.name
+    else patch.avatar_frame = item.id.replace('frame:', '')
+    const { error } = await supabaseAdmin.from('users').update(patch).eq('id', userId)
+    if (error) {
+      console.error('badge redeem failed:', error)
+      return NextResponse.json({ error: '兌換失敗（資料表尚未更新）' }, { status: 500 })
+    }
+    await supabaseAdmin.rpc('increment_points', { uid: userId, delta: -item.points })
+    await supabaseAdmin.from('point_logs').insert({
+      user_id: userId, amount: -item.points, source: 'redeem',
+      description: `兌換${item.kind === 'title' ? '稱號' : '頭像框'}：${item.emoji} ${item.name}`,
+    })
+    const { data: after } = await supabaseAdmin.from('users').select('total_points').eq('id', userId).single()
+    return NextResponse.json({ ok: true, unlocked: item, remainingPoints: after?.total_points ?? 0 })
+  }
+
+  // ── 解鎖券（原有邏輯） ──
   await supabaseAdmin.rpc('increment_points', { uid: userId, delta: -item.points })
   await supabaseAdmin.from('point_logs').insert({
     user_id: userId, amount: -item.points, source: 'redeem',

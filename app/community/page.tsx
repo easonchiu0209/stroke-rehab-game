@@ -8,6 +8,15 @@ interface Post {
   id: string; content: string; visibility: 'public' | 'private'; created_at: string
   author_name: string; author_pic: string | null; cheers: number; cheeredByMe: boolean; isMine: boolean
   comment_count?: number
+  author_title?: string | null
+  author_frame?: string | null
+}
+
+// 頭像框樣式（榮譽層獎勵）
+export const FRAME_RING: Record<string, string> = {
+  bronze: 'ring-2 ring-amber-600',
+  silver: 'ring-2 ring-slate-400',
+  gold:   'ring-[3px] ring-yellow-400',
 }
 
 interface Comment {
@@ -167,11 +176,15 @@ export default function CommunityPage() {
           : posts.map(p => (
             <article key={p.id} className="bg-white rounded-2xl shadow-sm p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 shrink-0">
+                <div className={`w-10 h-10 rounded-full overflow-hidden bg-slate-200 shrink-0 ${p.author_frame ? FRAME_RING[p.author_frame] ?? '' : ''}`}>
                   {p.author_pic ? <img src={p.author_pic} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">🙂</div>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 truncate">{p.author_name}{p.isMine && <span className="text-xs text-slate-400 font-normal">（我）</span>}</p>
+                  <p className="font-bold text-slate-800 truncate">
+                    {p.author_name}
+                    {p.author_title && <span className="ml-1.5 text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full align-middle">{p.author_title}</span>}
+                    {p.isMine && <span className="text-xs text-slate-400 font-normal">（我）</span>}
+                  </p>
                   <p className="text-xs text-slate-400">{timeAgo(p.created_at)} · {p.visibility === 'private' ? '🔒 只有自己' : '🌍 公開'}</p>
                 </div>
                 {p.isMine && <button onClick={() => del(p)} className="text-slate-300 hover:text-red-500 text-sm">刪除</button>}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
+import { fetchUserBadges } from '@/lib/serverBadges'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -44,12 +45,17 @@ export async function GET() {
     for (const c of comments ?? []) commentCount.set(c.post_id, (commentCount.get(c.post_id) ?? 0) + 1)
   }
 
+  // 榮譽徽章（稱號/頭像框；欄位未建時為空，優雅降級）
+  const badges = await fetchUserBadges((rows ?? []).map(r => r.user_id))
+
   const posts = (rows ?? []).map(r => {
     const author = Array.isArray(r.users) ? r.users[0] : r.users
     const c = cheerMap.get(r.id) ?? { count: 0, mine: false }
+    const b = badges.get(r.user_id)
     return {
       id: r.id, content: r.content, visibility: r.visibility, created_at: r.created_at,
       author_name: author?.nickname || author?.display_name || '使用者', author_pic: author?.picture_url ?? null,
+      author_title: b?.title ?? null, author_frame: b?.avatar_frame ?? null,
       cheers: c.count, cheeredByMe: c.mine, isMine: r.user_id === me,
       comment_count: commentCount.get(r.id) ?? 0,
     }

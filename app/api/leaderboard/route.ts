@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { settleWeeklyRewards } from '@/lib/serverPoints'
+import { fetchUserBadges } from '@/lib/serverBadges'
 
 // 即時查詢，但用「分數帳本(point_logs)」只算到最近一個更新時間點為止，
 // 所以排行榜只在每天 12:00 / 00:00（台灣時間）變動；週榜每週一 00:00 結算。
@@ -46,12 +47,17 @@ export async function GET() {
     }
   }
 
+  // 榮譽徽章（欄位未建時為空，優雅降級）
+  const badges = await fetchUserBadges(Array.from(all.keys()))
+
   const build = (m: Map<string, number>, limit: number) =>
     Array.from(m.entries())
       .map(([id, pts]) => ({
         id, total_points: pts,
         display_name: uMap.get(id)?.name ?? '玩家',
         picture_url: uMap.get(id)?.picture_url ?? null,
+        title: badges.get(id)?.title ?? null,
+        avatar_frame: badges.get(id)?.avatar_frame ?? null,
       }))
       .filter(e => e.total_points > 0)
       .sort((a, b) => b.total_points - a.total_points)

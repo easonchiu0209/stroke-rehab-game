@@ -21,12 +21,14 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 interface UnlockItem {
-  kind: 'farm' | 'fish'
+  kind: 'farm' | 'fish' | 'egg' | 'title' | 'frame'
   id: string
   name: string
   emoji: string
   points: number
   owned: boolean
+  repeatable?: boolean
+  desc?: string
 }
 
 export default function PrizesPage() {
@@ -63,10 +65,26 @@ export default function PrizesPage() {
       })
       const d = await res.json()
       if (res.ok) {
-        showToast(`🎉 解鎖 ${item.emoji} ${item.name}！快去${item.kind === 'farm' ? '農場' : '水族箱'}看看`, true)
         setPtsOverride(d.remainingPoints)
-        setUnlocks(prev => prev.map(u => u.kind === item.kind && u.id === item.id ? { ...u, owned: true } : u))
-      } else showToast(d.error ?? '解鎖失敗', false)
+        if (item.kind === 'egg' && d.egg) {
+          // 驚喜蛋開獎
+          const msg = d.egg.type === 'deco'
+            ? `🎊 開出限定裝飾 ${d.egg.deco.emoji} ${d.egg.deco.name}！`
+            : d.egg.type === 'pearls' ? `開出 🫧 珍珠 ×${d.egg.amount}！` : `開出 🪙 金幣 ×${d.egg.amount}！`
+          showToast(msg, true)
+          if (d.egg.type !== 'deco') {
+            window.dispatchEvent(new CustomEvent('lmx:drop', {
+              detail: { coins: d.egg.type === 'coins' ? d.egg.amount : 0, pearls: d.egg.type === 'pearls' ? d.egg.amount : 0, rare: false },
+            }))
+          }
+        } else {
+          const dest = item.kind === 'farm' ? '，快去農場看看' : item.kind === 'fish' ? '，快去水族箱看看' : '，社群和排行榜看得到囉'
+          showToast(`🎉 獲得 ${item.emoji} ${item.name}${dest}`, true)
+          if (!item.repeatable) {
+            setUnlocks(prev => prev.map(u => u.kind === item.kind && u.id === item.id ? { ...u, owned: true } : u))
+          }
+        }
+      } else showToast(d.error ?? '兌換失敗', false)
     } finally {
       setRedeeming(null)
     }
@@ -166,13 +184,60 @@ export default function PrizesPage() {
         </div>
       )}
 
+      {/* 驚喜蛋（即時爽感層，可重複購買） */}
+      {session && unlocks.some(u => u.kind === 'egg') && (() => {
+        const egg = unlocks.find(u => u.kind === 'egg')!
+        const afford = userPoints >= egg.points
+        return (
+          <div className="w-full max-w-lg bg-gradient-to-r from-yellow-50 to-amber-50 rounded-2xl border border-amber-200 p-5 shadow-sm flex items-center gap-4">
+            <span className="text-5xl">🎲</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-slate-800">驚喜蛋</p>
+              <p className="text-xs text-slate-500">{egg.desc}</p>
+            </div>
+            <button onClick={() => handleUnlock(egg)} disabled={!afford || redeeming === 'egg:egg'}
+              className="px-4 py-2.5 rounded-xl bg-amber-500 text-white font-bold active:scale-95 disabled:opacity-40 shrink-0">
+              {redeeming === 'egg:egg' ? '開蛋中…' : `開一顆 ${egg.points}分`}
+            </button>
+          </div>
+        )
+      })()}
+
+      {/* 榮譽：稱號與頭像框 */}
+      {unlocks.some(u => u.kind === 'title' || u.kind === 'frame') && (
+        <div className="w-full max-w-lg bg-white rounded-2xl border border-indigo-200 p-5 shadow-sm">
+          <p className="font-bold text-slate-800 mb-1">🎖️ 榮譽獎勵</p>
+          <p className="text-xs text-slate-400 mb-3">稱號與頭像框會顯示在社群和排行榜，讓大家看見你的努力。</p>
+          <div className="grid grid-cols-2 gap-2">
+            {unlocks.filter(u => u.kind === 'title' || u.kind === 'frame').map(item => {
+              const key = `${item.kind}:${item.id}`
+              const afford = session && userPoints >= item.points
+              return (
+                <button key={key} onClick={() => handleUnlock(item)} disabled={item.owned || redeeming === key}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
+                    item.owned ? 'border-green-200 bg-green-50 opacity-70' : afford ? 'border-indigo-200 bg-indigo-50 active:scale-95' : 'border-slate-100 bg-slate-50 opacity-60'
+                  }`}>
+                  <span className="text-3xl">{item.emoji}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-bold text-slate-800 text-sm">{item.name}</span>
+                    <span className={`block text-xs font-semibold ${item.owned ? 'text-green-600' : 'text-indigo-600'}`}>
+                      {item.owned ? '✓ 已擁有' : redeeming === key ? '處理中…' : `${item.points} 積分`}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 稀有解鎖券：用積分直接解鎖高階物種 */}
       {unlocks.length > 0 && (
         <div className="w-full max-w-lg bg-white rounded-2xl border border-purple-200 p-5 shadow-sm">
           <p className="font-bold text-slate-800 mb-1">✨ 稀有解鎖券</p>
           <p className="text-xs text-slate-400 mb-3">用訓練積分直接解鎖農場與水族箱的稀有夥伴，不用慢慢存金幣珍珠。</p>
           <div className="grid grid-cols-2 gap-2">
-            {unlocks.map(item => {
+            {unlocks.filter(u => u.kind === 'farm' || u.kind === 'fish').map(item => {
               const key = `${item.kind}:${item.id}`
               const afford = session && userPoints >= item.points
               return (
