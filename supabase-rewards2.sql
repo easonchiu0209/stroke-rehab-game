@@ -5,4 +5,5 @@
 
 alter table users add column if not exists title text;          -- 稱號（顯示於社群/排行榜名旁）
 alter table users add column if not exists avatar_frame text;   -- 頭像框 bronze/silver/gold
-alter table users add column if not exists owned_items jsonb not null default '[]'::jsonb;  -- 收藏（裝飾等）
+alter table users add column if not exists owned_items jsonb not null default '[]'::jsonb;  -- 收藏（裝飾/主題等）
+alter table users add column if not exists active_theme text;   -- 佈景主題（farm/aquarium hub 背景）

@@ -12,6 +12,7 @@ import {
   type Fish, type AquariumState,
 } from '@/lib/aquarium'
 import { feedbackHit, speak } from '@/lib/feedback'
+import { useHubTheme } from '@/hooks/useHubTheme'
 
 type Page = 'loading' | 'tank' | 'fishing' | 'result'
 interface FishResult { caughtCount: number; added: number; overflow: number; pearlsEarned: number; levelUp: boolean; state: AquariumState }
@@ -152,6 +153,7 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
   const router = useRouter()
   const [shop, setShop] = useState(false)
   const [busy, setBusy] = useState(false)
+  const { background, themeEmoji, canSwitch, cycle } = useHubTheme('aquarium')
 
   async function doShop(action: string, extra: Record<string, unknown> = {}) {
     setBusy(true)
@@ -164,10 +166,14 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
   const scaleFor = (st: number) => st >= 2 ? 1.2 : st === 1 ? 0.95 : 0.72
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-3 py-4 gap-4" style={{ background: 'linear-gradient(#bdecff,#7fd0f5)' }}>
+    <main className="min-h-screen flex flex-col items-center px-3 py-4 gap-4" style={{ background }}>
       <div className="w-full max-w-lg flex items-center justify-between">
         <button onClick={() => router.push('/')} className="text-blue-900/80 font-bold bg-white/70 rounded-full px-3 py-1 shadow-sm">← 首頁</button>
         <div className="flex items-center gap-2">
+          {canSwitch && (
+            <button onClick={cycle} title="切換佈景主題"
+              className="bg-white rounded-full px-3 py-1 shadow font-bold active:scale-95">🎨 {themeEmoji}</button>
+          )}
           <span className="bg-white rounded-full px-3 py-1 shadow font-bold text-sky-600">🫧 {state.pearls}</span>
           <span className="bg-white rounded-full px-3 py-1 shadow font-bold text-blue-700">Lv.{state.level}</span>
         </div>

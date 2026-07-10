@@ -21,7 +21,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 interface UnlockItem {
-  kind: 'farm' | 'fish' | 'egg' | 'title' | 'frame'
+  kind: 'farm' | 'fish' | 'egg' | 'title' | 'frame' | 'theme'
   id: string
   name: string
   emoji: string
@@ -78,7 +78,7 @@ export default function PrizesPage() {
             }))
           }
         } else {
-          const dest = item.kind === 'farm' ? '，快去農場看看' : item.kind === 'fish' ? '，快去水族箱看看' : '，社群和排行榜看得到囉'
+          const dest = item.kind === 'farm' ? '，快去農場看看' : item.kind === 'fish' ? '，快去水族箱看看' : item.kind === 'theme' ? '，農場和水族箱換上新裝囉' : '，社群和排行榜看得到囉'
           showToast(`🎉 獲得 ${item.emoji} ${item.name}${dest}`, true)
           if (!item.repeatable) {
             setUnlocks(prev => prev.map(u => u.kind === item.kind && u.id === item.id ? { ...u, owned: true } : u))
@@ -202,6 +202,32 @@ export default function PrizesPage() {
           </div>
         )
       })()}
+
+      {/* 佈景主題 */}
+      {unlocks.some(u => u.kind === 'theme') && (
+        <div className="w-full max-w-lg bg-white rounded-2xl border border-teal-200 p-5 shadow-sm">
+          <p className="font-bold text-slate-800 mb-1">🎨 佈景主題</p>
+          <p className="text-xs text-slate-400 mb-3">換上新佈景，農場和水族箱立刻換季（兌換後可用 🎨 鈕隨時切換）。</p>
+          <div className="grid grid-cols-3 gap-2">
+            {unlocks.filter(u => u.kind === 'theme').map(item => {
+              const key = `${item.kind}:${item.id}`
+              const afford = session && userPoints >= item.points
+              return (
+                <button key={key} onClick={() => handleUnlock(item)} disabled={item.owned || redeeming === key}
+                  className={`flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 transition-all ${
+                    item.owned ? 'border-green-200 bg-green-50 opacity-70' : afford ? 'border-teal-200 bg-teal-50 active:scale-95' : 'border-slate-100 bg-slate-50 opacity-60'
+                  }`}>
+                  <span className="text-3xl">{item.emoji}</span>
+                  <span className="font-bold text-slate-800 text-sm">{item.name}</span>
+                  <span className={`text-xs font-semibold ${item.owned ? 'text-green-600' : 'text-teal-600'}`}>
+                    {item.owned ? '✓ 已擁有' : redeeming === key ? '…' : `${item.points} 積分`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 榮譽：稱號與頭像框 */}
       {unlocks.some(u => u.kind === 'title' || u.kind === 'frame') && (

@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { SPECIES } from '@/lib/farm'
 import { FISHES } from '@/lib/aquarium'
 import { grantResources } from '@/lib/serverDrop'
+import { THEMES, PURCHASABLE_THEMES } from '@/lib/themes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,7 +17,7 @@ export const revalidate = 0
 // 榮譽層欄位未建（supabase-rewards2.sql 待套用）時：目錄照列、兌換回明確錯誤。
 
 interface CatalogItem {
-  kind: 'farm' | 'fish' | 'egg' | 'title' | 'frame'
+  kind: 'farm' | 'fish' | 'egg' | 'title' | 'frame' | 'theme'
   id: string
   name: string
   emoji: string
@@ -38,6 +39,11 @@ const FRAMES: CatalogItem[] = [
   { kind: 'frame', id: 'frame:gold',   name: '金色頭像框', emoji: '🥇', points: 1000 },
 ]
 const EGG: CatalogItem = { kind: 'egg', id: 'egg', name: '驚喜蛋', emoji: '🎲', points: 20, repeatable: true, desc: '隨機開出金幣、珍珠，或稀有限定裝飾！' }
+const THEME_ITEMS: CatalogItem[] = PURCHASABLE_THEMES.map(id => ({
+  kind: 'theme' as const, id: `theme:${id}`,
+  name: `${THEMES[id].name}主題`, emoji: THEMES[id].emoji, points: 30,
+  desc: '農場與水族箱的佈景，兌換後即套用',
+}))
 const DECOS = [
   { id: 'deco:lantern', name: '紅燈籠', emoji: '🏮' },
   { id: 'deco:chime',   name: '風鈴',   emoji: '🎐' },
@@ -53,7 +59,7 @@ function buildCatalog(): CatalogItem[] {
     const f = FISHES[id as keyof typeof FISHES]
     return f && { kind: 'fish' as const, id, name: f.name, emoji: f.emoji, points: Math.ceil(f.unlockCost * 1.5) }
   }).filter(Boolean) as CatalogItem[]
-  return [EGG, ...TITLES, ...FRAMES, ...farm, ...fish]
+  return [EGG, ...THEME_ITEMS, ...TITLES, ...FRAMES, ...farm, ...fish]
 }
 
 async function getOwned(userId: string) {
@@ -144,11 +150,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, egg: prize, remainingPoints: after?.total_points ?? 0 })
   }
 
-  // ── 稱號 / 頭像框 ──
-  if (item.kind === 'title' || item.kind === 'frame') {
+  // ── 稱號 / 頭像框 / 佈景主題 ──
+  if (item.kind === 'title' || item.kind === 'frame' || item.kind === 'theme') {
     const patch: Record<string, unknown> = { owned_items: Array.from(owned.items).concat(item.id) }
     if (item.kind === 'title') patch.title = item.name
-    else patch.avatar_frame = item.id.replace('frame:', '')
+    else if (item.kind === 'frame') patch.avatar_frame = item.id.replace('frame:', '')
+    else patch.active_theme = item.id.replace('theme:', '')   // 兌換即套用
     const { error } = await supabaseAdmin.from('users').update(patch).eq('id', userId)
     if (error) {
       console.error('badge redeem failed:', error)

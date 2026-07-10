@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SPECIES, ALL_SPECIES, expandCost, isRipe, ripeStage, type FarmState } from '@/lib/farm'
 import { FarmDefs, SoilTile, Tree, Bush, Flower, Sun } from '@/components/farm/FarmScene'
+import { useHubTheme } from '@/hooks/useHubTheme'
 
 export function FarmHome({ state, onTend, onChanged }: {
   state: FarmState
@@ -16,6 +17,7 @@ export function FarmHome({ state, onTend, onChanged }: {
   const [busy, setBusy] = useState(false)
 
   const ripeCount = state.plots.filter(isRipe).length
+  const { background, themeEmoji, canSwitch, cycle } = useHubTheme('farm')
 
   async function shop(action: string, extra: Record<string, unknown> = {}) {
     setBusy(true)
@@ -29,13 +31,17 @@ export function FarmHome({ state, onTend, onChanged }: {
 
   return (
     <main className="min-h-screen flex flex-col items-center px-3 py-4 gap-4"
-      style={{ background: 'linear-gradient(#cdeffb, #d8f3ad 26%, #b6e487)' }}>
+      style={{ background }}>
       <FarmDefs />
 
       {/* Top bar */}
       <div className="w-full max-w-lg flex items-center justify-between">
         <button onClick={() => router.push('/')} className="text-green-900/80 font-bold bg-white/70 rounded-full px-3 py-1 shadow-sm">← 首頁</button>
         <div className="flex items-center gap-2">
+          {canSwitch && (
+            <button onClick={cycle} title="切換佈景主題"
+              className="bg-white rounded-full px-3 py-1 shadow font-bold active:scale-95">🎨 {themeEmoji}</button>
+          )}
           <span className="bg-white rounded-full px-3 py-1 shadow font-bold text-amber-600">🪙 {state.coins}</span>
           <span className="bg-white rounded-full px-3 py-1 shadow font-bold text-green-700">Lv.{state.level}</span>
         </div>
