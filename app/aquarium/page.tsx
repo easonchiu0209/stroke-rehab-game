@@ -155,6 +155,23 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
   const [busy, setBusy] = useState(false)
   const { background, themeEmoji, canSwitch, cycle } = useHubTheme('aquarium')
 
+  // 訪客動態（誰來撿過寶）
+  const [visitEvents, setVisitEvents] = useState<{ type: string; actor_name: string }[]>([])
+  useEffect(() => {
+    fetch('/api/visit?events=1').then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.events) setVisitEvents(d.events.filter((e: { type: string }) => e.type === 'pickup' || e.type === 'visit')) })
+      .catch(() => { /* ignore */ })
+  }, [])
+
+  async function collectTreasures() {
+    const res = await fetch('/api/aquarium/treasure', { method: 'POST' })
+    const d = await res.json().catch(() => null)
+    if (res.ok && d?.collected) {
+      window.dispatchEvent(new CustomEvent('lmx:drop', { detail: { coins: 0, pearls: d.collected, rare: false } }))
+      onChanged(await fetch('/api/aquarium').then(x => x.json()))
+    } else if (d?.error) alert(d.error)
+  }
+
   async function doShop(action: string, extra: Record<string, unknown> = {}) {
     setBusy(true)
     const r = await fetch('/api/aquarium/shop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...extra }) })
@@ -180,6 +197,19 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
       </div>
       <h1 className="text-2xl font-extrabold text-blue-900 drop-shadow-sm">🐠 復能水族箱</h1>
 
+      {/* 訪客動態 */}
+      {visitEvents.length > 0 && (
+        <div className="w-full max-w-lg bg-white/80 rounded-2xl px-4 py-2.5 shadow-sm">
+          {visitEvents.slice(0, 3).map((e, i) => (
+            <p key={i} className="text-xs text-slate-600">
+              {e.type === 'pickup'
+                ? <>🐚 <strong>{e.actor_name}</strong> 來你的魚缸撿了一個寶物</>
+                : <>👋 <strong>{e.actor_name}</strong> 來逛過</>}
+            </p>
+          ))}
+        </div>
+      )}
+
       {/* 魚缸 */}
       <div className="relative w-full max-w-lg rounded-[26px] overflow-hidden shadow-xl" style={{ border: '6px solid #5a93c4', height: 340, background: 'linear-gradient(#2a7ab5, #0b3a5e)' }}>
         {/* 光線 */}
@@ -188,6 +218,14 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
         <div className="absolute inset-x-0 bottom-0 h-10" style={{ background: 'linear-gradient(to top,#c9a86a,transparent)' }} />
         <div className="absolute bottom-1 left-4 text-3xl">🌿</div><div className="absolute bottom-1 left-14 text-2xl">🪸</div>
         <div className="absolute bottom-1 right-6 text-3xl">🌿</div><div className="absolute bottom-2 right-20 text-xl">🐚</div>
+        {/* 缸底寶物（魚產出，點擊收集） */}
+        {(state.treasures ?? 0) > 0 && (
+          <button onClick={collectTreasures}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-amber-300/90 rounded-full px-3 py-1 shadow-lg active:scale-95 z-10">
+            <span className="text-lg">{'🐚'.repeat(Math.min(3, state.treasures ?? 0))}{'💎'.repeat(Math.max(0, Math.min(3, (state.treasures ?? 0) - 3)))}</span>
+            <span className="text-xs font-bold text-amber-900">收集 ×{state.treasures}</span>
+          </button>
+        )}
         {/* 魚群 */}
         {state.fish.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-white/80 text-lg">魚缸是空的，去釣魚吧！</div>}
         {state.fish.map((f, i) => {

@@ -7,6 +7,7 @@ import {
   FISHES, DEFAULT_UNLOCKED, MAX_STAGE, levelForCaught,
   type Fish, type AquariumState,
 } from '@/lib/aquarium'
+import { accrueTreasures } from '@/lib/aquariumTreasure'
 
 async function load(userId: string): Promise<AquariumState> {
   let { data: aq } = await supabaseAdmin.from('aquarium').select('*').eq('user_id', userId).single()
@@ -18,10 +19,14 @@ async function load(userId: string): Promise<AquariumState> {
   }
   const { data: fishRows } = await supabaseAdmin
     .from('aquarium_fish').select('id, species, stage').eq('user_id', userId).order('created_at')
+  const fish = (fishRows ?? []).map(f => ({ id: f.id, species: f.species, stage: f.stage }))
+  // 缸底寶物懶惰累積（欄位未建時 null → 不顯示）
+  const treasures = await accrueTreasures(userId, fish.length)
   return {
     pearls: aq.pearls, level: aq.level, capacity: aq.capacity, total_caught: aq.total_caught,
     unlocked: aq.unlocked, discovered: aq.discovered ?? [],
-    fish: (fishRows ?? []).map(f => ({ id: f.id, species: f.species, stage: f.stage })),
+    fish,
+    treasures: treasures ?? undefined,
   }
 }
 

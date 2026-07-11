@@ -53,6 +53,7 @@ export interface AquariumState {
   unlocked:     Fish[]
   discovered:   Fish[]
   fish:         TankFish[]
+  treasures?:   number   // 缸底寶物（魚產出；欄位未建時 undefined）
 }
 
 export function expandCost(capacity: number): number {

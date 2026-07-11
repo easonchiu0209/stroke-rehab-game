@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SPECIES, isRipe, stealAmount, type Plot, type Species } from '@/lib/farm'
+import { FISHES, type Fish } from '@/lib/aquarium'
+import { accrueTreasures, VISITOR_PICKUP_CAP } from '@/lib/aquariumTreasure'
 import { grantResources } from '@/lib/serverDrop'
 import { todayTW } from '@/lib/quests'
 
@@ -19,14 +21,16 @@ function dayStartUTC(): string {
   return new Date(new Date(`${todayTW()}T00:00:00Z`).getTime() - 8 * 3600_000).toISOString()
 }
 
-async function stealsToday(actorId: string): Promise<number> {
+async function actionsToday(actorId: string, type: 'steal' | 'pickup', cap: number): Promise<number> {
   try {
     const { count } = await supabaseAdmin
       .from('social_events').select('id', { count: 'exact', head: true })
-      .eq('actor_id', actorId).eq('type', 'steal').gte('created_at', dayStartUTC())
+      .eq('actor_id', actorId).eq('type', type).gte('created_at', dayStartUTC())
     return count ?? 0
-  } catch { return DAILY_STEAL_CAP }   // 表未建：視為額度用完（功能未開通）
+  } catch { return cap }   // 表未建：視為額度用完（功能未開通）
 }
+const stealsToday = (id: string) => actionsToday(id, 'steal', DAILY_STEAL_CAP)
+const pickupsToday = (id: string) => actionsToday(id, 'pickup', VISITOR_PICKUP_CAP)
 
 // GET：無參數 → 鄰居列表；?userId= → 參觀對象的農場
 export async function GET(req: NextRequest) {
@@ -70,13 +74,21 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // 參觀農場
-  if (userId === me) return NextResponse.json({ error: '這是你自己的農場' }, { status: 400 })
-  const [{ data: owner }, { data: plotRows }] = await Promise.all([
+  // 參觀（農場 + 水族箱）
+  if (userId === me) return NextResponse.json({ error: '這是你自己的家' }, { status: 400 })
+  const [{ data: owner }, { data: plotRows }, { data: fishRows }] = await Promise.all([
     supabaseAdmin.from('users').select('display_name, nickname, picture_url').eq('id', userId).single(),
     supabaseAdmin.from('farm_plots').select('*').eq('user_id', userId).order('idx'),
+    supabaseAdmin.from('aquarium_fish').select('species, stage').eq('user_id', userId).limit(20),
   ])
-  if (!owner || !plotRows) return NextResponse.json({ error: '找不到這位鄰居的農場' }, { status: 404 })
+  if (!owner) return NextResponse.json({ error: '找不到這位鄰居' }, { status: 404 })
+
+  // 鄰居魚缸（有魚才有撿寶）
+  const fishList = (fishRows ?? []).map(f => {
+    const def = FISHES[f.species as Fish]
+    return def ? { emoji: def.emoji, name: def.name, stage: f.stage } : null
+  }).filter(Boolean)
+  const ownerTreasures = fishList.length ? await accrueTreasures(userId, fishList.length) : null
 
   // 來訪紀錄（同一天同一人只記一次，避免洗版）
   try {
@@ -88,20 +100,46 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     owner: { name: owner.nickname || owner.display_name || '鄰居', picture_url: owner.picture_url },
-    plots: plotRows.map(p => ({
+    plots: (plotRows ?? []).map(p => ({
       idx: p.idx, kind: p.kind, species: p.species, stage: p.stage, stolen: p.stolen ?? false,
     })),
+    aquarium: fishList.length ? { fish: fishList, treasures: ownerTreasures ?? 0 } : null,
     stealsLeft: Math.max(0, DAILY_STEAL_CAP - await stealsToday(me)),
+    pickupsLeft: Math.max(0, VISITOR_PICKUP_CAP - await pickupsToday(me)),
   })
 }
 
-// POST：偷菜
+// POST：偷菜 / 撿寶
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const me = session.user.id
 
   const body = await req.json()
+
+  // ── 撿寶（豐饒模式：不扣主人的） ──
+  if (body.action === 'pickup') {
+    const target = String(body.target ?? '')
+    if (!target || target === me) return NextResponse.json({ error: '參數錯誤' }, { status: 400 })
+    if (await pickupsToday(me) >= VISITOR_PICKUP_CAP) {
+      return NextResponse.json({ error: `今天的撿寶額度用完了（每天 ${VISITOR_PICKUP_CAP} 個），明天再來 🐚` }, { status: 400 })
+    }
+    const { count: fishCount } = await supabaseAdmin
+      .from('aquarium_fish').select('id', { count: 'exact', head: true }).eq('user_id', target)
+    if (!fishCount) return NextResponse.json({ error: '這個魚缸還沒有魚，撿不到寶物' }, { status: 400 })
+
+    try {
+      await supabaseAdmin.from('social_events').insert({
+        user_id: target, actor_id: me, type: 'pickup', payload: { count: 1 },
+      })
+    } catch {
+      return NextResponse.json({ error: '功能尚未開通' }, { status: 500 })
+    }
+    await grantResources(me, 0, 1)
+    const emoji = Math.random() < 0.5 ? '🐚' : '💎'
+    return NextResponse.json({ ok: true, pearls: 1, emoji, pickupsLeft: Math.max(0, VISITOR_PICKUP_CAP - await pickupsToday(me)) })
+  }
+
   if (body.action !== 'steal') return NextResponse.json({ error: 'unknown action' }, { status: 400 })
   const target = String(body.target ?? '')
   const idx = Number(body.idx)

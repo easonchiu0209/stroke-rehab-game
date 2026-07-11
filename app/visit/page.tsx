@@ -12,7 +12,9 @@ interface Neighbor { id: string; name: string; picture_url: string | null; farm_
 interface VisitData {
   owner: { name: string; picture_url: string | null }
   plots: Plot[]
+  aquarium: { fish: { emoji: string; name: string; stage: number }[]; treasures: number } | null
   stealsLeft: number
+  pickupsLeft: number
 }
 
 export default function VisitPage() {
@@ -44,6 +46,23 @@ export default function VisitPage() {
   }, [])
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3500) }
+
+  async function pickup() {
+    if (!target || busy) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/visit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pickup', target: target.id }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        showToast(`${d.emoji} 撿到一個寶物，得到 🫧 珍珠 ×1！`)
+        window.dispatchEvent(new CustomEvent('lmx:drop', { detail: { coins: 0, pearls: 1, rare: false } }))
+        setVisit(v => v ? { ...v, pickupsLeft: d.pickupsLeft } : v)
+      } else showToast(d.error ?? '撿不到')
+    } finally { setBusy(false) }
+  }
 
   async function steal(idx: number) {
     if (!target || busy) return
@@ -132,6 +151,29 @@ export default function VisitPage() {
           </div>
 
           <p className="text-xs text-slate-400 text-center">偷菜拿 3 成金幣，主人還是保有 7 成收成，大家開心 🌱</p>
+
+          {/* 鄰居的魚缸（撿寶） */}
+          {visit.aquarium && (
+            <div className="rounded-[24px] p-4 shadow-inner" style={{ background: 'linear-gradient(#2a7ab5, #0b3a5e)', border: '5px solid #5a93c4' }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-bold text-white">🐠 {visit.owner.name} 的魚缸</p>
+                <span className="text-xs font-bold text-sky-200">今日可撿 {visit.pickupsLeft} 個</span>
+              </div>
+              <div className="flex gap-2 flex-wrap mb-3">
+                {visit.aquarium.fish.slice(0, 12).map((f, i) => (
+                  <span key={i} className="text-3xl" title={f.name}>{f.emoji}</span>
+                ))}
+              </div>
+              <div className="flex items-center justify-between bg-white/10 rounded-xl px-3 py-2">
+                <span className="text-sm text-sky-100">缸底的寶物：{'🐚'.repeat(Math.min(3, visit.aquarium.treasures))}{'💎'.repeat(Math.max(0, Math.min(3, visit.aquarium.treasures - 3)))}{visit.aquarium.treasures === 0 && '（還沒有）'}</span>
+                <button onClick={pickup} disabled={busy || visit.pickupsLeft <= 0}
+                  className="px-4 py-1.5 rounded-full bg-sky-400 text-white text-sm font-bold active:scale-95 disabled:opacity-40">
+                  撿一個 🐚
+                </button>
+              </div>
+              <p className="text-[10px] text-sky-200/70 mt-2">魚缸的寶物很多，撿走不會影響主人的收藏 😊</p>
+            </div>
+          )}
         </div>
       )}
     </main>
