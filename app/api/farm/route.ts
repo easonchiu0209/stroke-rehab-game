@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { awardDailyBonuses } from '@/lib/serverPoints'
 import { saveMotionData } from '@/lib/serverMotion'
 import {
-  SPECIES, DEFAULT_UNLOCKED, ripeStage, isRipe, levelForHarvest,
+  SPECIES, DEFAULT_UNLOCKED, ripeStage, isRipe, levelForHarvest, stealAmount,
   type Species, type Plot, type FarmState,
 } from '@/lib/farm'
 
@@ -39,10 +39,10 @@ async function loadFarm(userId: string): Promise<FarmState> {
   }
 
   const { data: plotRows } = await supabaseAdmin
-    .from('farm_plots').select('idx, kind, species, stage').eq('user_id', userId).order('idx')
+    .from('farm_plots').select('*').eq('user_id', userId).order('idx')
 
   const plots: Plot[] = (plotRows ?? []).map(p => ({
-    idx: p.idx, kind: p.kind, species: p.species, stage: p.stage,
+    idx: p.idx, kind: p.kind, species: p.species, stage: p.stage, stolen: p.stolen ?? false,
   }))
 
   return {
@@ -79,14 +79,16 @@ export async function POST(req: NextRequest) {
   let coinsEarned = 0
   let harvestCount = 0
 
-  // 1) 採收：只採真的成熟的
+  // 1) 採收：只採真的成熟的（被偷過的田扣掉被偷份額，保底 70%）
   for (const idx of harvested) {
     const plot = plotMap.get(idx)
     if (!plot || !plot.species || !isRipe(plot)) continue
-    coinsEarned += SPECIES[plot.species].reward
+    const reward = SPECIES[plot.species].reward
+    coinsEarned += plot.stolen ? reward - stealAmount(plot.species) : reward
     harvestCount++
     if (plot.kind === 'crop') {
       plot.stage = 0            // 作物採收後重新生長
+      plot.stolen = false       // 新的一輪，可再被偷
     }
     // 動物採收後維持成年（下次還能收），不動 stage
   }
@@ -104,7 +106,8 @@ export async function POST(req: NextRequest) {
   // 4) 寫回田地
   await supabaseAdmin.from('farm_plots').upsert(
     updatedPlots.map(p => ({
-      user_id: userId, idx: p.idx, kind: p.kind, species: p.species, stage: p.stage, updated_at: new Date().toISOString(),
+      user_id: userId, idx: p.idx, kind: p.kind, species: p.species, stage: p.stage,
+      stolen: p.stolen ?? false, updated_at: new Date().toISOString(),
     })),
     { onConflict: 'user_id,idx' },
   )

@@ -63,6 +63,12 @@ export interface Plot {
   kind:    'crop' | 'animal' | 'empty'
   species: Species | null
   stage:   number
+  stolen?: boolean   // 這輪已被偷過（採收後重置；主人保底 70%）
+}
+
+/** 偷菜可得金幣（30% 無條件進位；主人採收時扣同額，保底 70%） */
+export function stealAmount(sp: Species): number {
+  return Math.ceil(SPECIES[sp].reward * 0.3)
 }
 
 export interface FarmState {

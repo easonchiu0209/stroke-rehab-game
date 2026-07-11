@@ -123,6 +123,17 @@ export default function HomePage() {
         {/* ── 本週進步卡（LLM 週報個案版）── */}
         <WeeklyReportCard />
 
+        {/* ── 串門子入口 ── */}
+        <button onClick={() => router.push('/visit')}
+          className="w-full bg-gradient-to-r from-lime-100 to-green-100 rounded-2xl shadow-sm p-4 border border-lime-200 flex items-center gap-3 active:scale-[0.98] transition-all text-left">
+          <span className="text-3xl">🏡</span>
+          <span className="flex-1">
+            <span className="block font-extrabold text-green-900">去朋友家串門子</span>
+            <span className="block text-xs text-green-700">參觀鄰居的農場，偷偷拿一點成熟的菜 😏</span>
+          </span>
+          <span className="text-green-400 text-xl">›</span>
+        </button>
+
         {/* ── 家人分享卡入口 ── */}
         <button onClick={() => router.push('/share-card')}
           className="w-full bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl shadow-sm p-4 border border-amber-200 flex items-center gap-3 active:scale-[0.98] transition-all text-left">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SPECIES, ALL_SPECIES, expandCost, isRipe, ripeStage, type FarmState } from '@/lib/farm'
 import { FarmDefs, SoilTile, Tree, Bush, Flower, Sun } from '@/components/farm/FarmScene'
@@ -18,6 +18,13 @@ export function FarmHome({ state, onTend, onChanged }: {
 
   const ripeCount = state.plots.filter(isRipe).length
   const { background, themeEmoji, canSwitch, cycle } = useHubTheme('farm')
+
+  // 誰來過（偷菜/來訪動態）
+  const [events, setEvents] = useState<{ type: string; payload: { species?: string; coins?: number } | null; actor_name: string }[]>([])
+  useEffect(() => {
+    fetch('/api/visit?events=1').then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.events) setEvents(d.events) }).catch(() => { /* ignore */ })
+  }, [])
 
   async function shop(action: string, extra: Record<string, unknown> = {}) {
     setBusy(true)
@@ -48,6 +55,19 @@ export function FarmHome({ state, onTend, onChanged }: {
       </div>
 
       <h1 className="text-2xl font-extrabold text-green-900 drop-shadow-sm">復能開心農場</h1>
+
+      {/* 誰來過 */}
+      {events.length > 0 && (
+        <div className="w-full max-w-lg bg-white/80 rounded-2xl px-4 py-2.5 shadow-sm">
+          {events.slice(0, 3).map((e, i) => (
+            <p key={i} className="text-xs text-slate-600">
+              {e.type === 'steal' && e.payload?.species
+                ? <>😏 <strong>{e.actor_name}</strong> 來偷走了一點 {SPECIES[e.payload.species as keyof typeof SPECIES]?.name ?? '作物'}（{e.payload.coins} 金幣）</>
+                : <>👋 <strong>{e.actor_name}</strong> 來你的農場逛過</>}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* ── 農場場景 ───────────────────────────────────────────── */}
       <div className="relative w-full max-w-lg rounded-[30px] overflow-hidden shadow-xl"
