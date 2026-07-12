@@ -44,6 +44,7 @@ const GAME_NAMES: Record<string, string> = {
   'wall-climb':    '爬牆挑戰',
   'rhythm-step':   '節奏踏步',
   'sit-to-stand':  '坐到站',
+  'badminton':     '復能羽球',
 }
 
 export default function ProfilePage() {
