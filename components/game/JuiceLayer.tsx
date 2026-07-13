@@ -23,10 +23,26 @@ export interface FloatTextOpts {
   color?: string        // 文字顏色（預設金黃）
   size?: number         // 字級 px（預設 34）
 }
+export interface SlashFlashOpts {
+  color?: string         // 切面配色（預設白）
+  angle?: number         // 揮擊方向弧度（預設隨機）
+}
+export interface ComboBurstOpts {
+  color?: string          // 預設陽光金（聖經 §1.1，亮底不用霓虹）
+}
 export interface JuiceHandle {
   burst(nx: number, ny: number, opts?: BurstOpts): void
   floatText(nx: number, ny: number, text: string, opts?: FloatTextOpts): void
   shake(intensity?: number): void   // 0–1，預設 0.6
+  /** 命中瞬間的一道亮光劃痕，強化「切開」的瞬間感（聖經 §7 P1：切面/裂開視覺）。 */
+  slashFlash(nx: number, ny: number, opts?: SlashFlashOpts): void
+  /** Combo 里程碑演出：金色大噴發＋發光文字（聖經 §4 combo 光效，亮底用金非霓虹）。 */
+  comboBurst(nx: number, ny: number, combo: number, opts?: ComboBurstOpts): void
+  /**
+   * 短暫頓幀（聖經 §5.4，選用、克制）：暫停畫面容器內既有 CSS 動畫（雲朵飄移、呼吸光暈等）
+   * 80–120ms 再恢復，只做「世界瞬間定格」的錯覺，不影響任何遊戲邏輯/計時。
+   */
+  hitStop(ms?: number): void
 }
 
 interface Particle {
@@ -37,6 +53,11 @@ interface Particle {
 interface FloatItem {
   x: number; y: number; text: string; color: string; size: number
   born: number; life: number
+  glow?: boolean   // combo 文字用發光描邊，一般分數字不用
+}
+interface Streak {
+  x: number; y: number; angle: number; color: string
+  born: number; life: number
 }
 
 const DEFAULT_COLORS = ['#FFD600', '#FF9800', '#8BC34A', '#4FC3F7', '#F48FB1']
@@ -45,6 +66,7 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const particles  = useRef<Particle[]>([])
   const floats     = useRef<FloatItem[]>([])
+  const streaks    = useRef<Streak[]>([])
   const rafRef     = useRef<number | null>(null)
   const runningRef = useRef(false)
 
@@ -90,14 +112,39 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
         ctx.globalAlpha = age < 0.7 ? 1 : 1 - (age - 0.7) / 0.3
         ctx.font = `900 ${f.size * scale}px system-ui, sans-serif`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        if (f.glow) {
+          ctx.shadowColor = f.color
+          ctx.shadowBlur = 16
+        }
         ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.55)'
         ctx.strokeText(f.text, f.x, f.y - dy)
         ctx.fillStyle = f.color
         ctx.fillText(f.text, f.x, f.y - dy)
+        ctx.shadowBlur = 0
       }
       ctx.globalAlpha = 1
 
-      if (particles.current.length || floats.current.length) {
+      // 切面亮光劃痕：命中瞬間一閃即逝的「切開」感（不重複閃爍，單次淡出）
+      streaks.current = streaks.current.filter(s => now - s.born < s.life)
+      for (const s of streaks.current) {
+        const age = (now - s.born) / s.life
+        const len = 44 * (1 - age * 0.25)
+        ctx.save()
+        ctx.translate(s.x, s.y)
+        ctx.rotate(s.angle)
+        ctx.globalAlpha = 1 - age
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+        ctx.lineWidth = 6 * (1 - age)
+        ctx.lineCap = 'round'
+        ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(len, 0); ctx.stroke()
+        ctx.strokeStyle = s.color
+        ctx.lineWidth = 3 * (1 - age)
+        ctx.beginPath(); ctx.moveTo(-len * 0.75, 0); ctx.lineTo(len * 0.75, 0); ctx.stroke()
+        ctx.restore()
+      }
+      ctx.globalAlpha = 1
+
+      if (particles.current.length || floats.current.length || streaks.current.length) {
         rafRef.current = requestAnimationFrame(step)
       } else {
         ctx.clearRect(0, 0, W, H)
@@ -156,6 +203,54 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
         { transform: `translate(${a * 0.5}px,${a * 0.3}px)` },
         { transform: 'translate(0,0)' },
       ], { duration: 260, easing: 'ease-out' })
+    },
+    slashFlash(nx, ny, opts) {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const W = canvas.parentElement?.clientWidth ?? 640
+      const H = canvas.parentElement?.clientHeight ?? 480
+      streaks.current.push({
+        x: nx * W, y: ny * H,
+        angle: opts?.angle ?? Math.random() * Math.PI,
+        color: opts?.color ?? '#FFFFFF',
+        born: performance.now(), life: 190,
+      })
+      ensureLoop()
+    },
+    comboBurst(nx, ny, combo, opts) {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const W = canvas.parentElement?.clientWidth ?? 640
+      const H = canvas.parentElement?.clientHeight ?? 480
+      const color = opts?.color ?? '#FFD600'   // 陽光金（聖經 §1.1）— 亮底場景不用霓虹
+      const now = performance.now()
+      for (let i = 0; i < 20; i++) {
+        const ang = (Math.PI * 2 * i) / 20 + Math.random() * 0.4
+        const spd = 4 + Math.random() * 6
+        particles.current.push({
+          x: nx * W, y: ny * H,
+          vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 3,
+          r: 4 + Math.random() * 4.5,
+          color: i % 4 === 0 ? '#FFFFFF' : color,
+          emoji: i % 6 === 5 ? '✨' : undefined,
+          born: now, life: 650 + Math.random() * 300,
+        })
+      }
+      floats.current.push({
+        x: nx * W, y: ny * H, text: `combo ×${combo}`,
+        color, size: 40, born: now, life: 950, glow: true,
+      })
+      ensureLoop()
+    },
+    hitStop(ms = 100) {
+      const el = canvasRef.current?.parentElement
+      if (!el) return
+      let anims: Animation[] = []
+      try { anims = el.getAnimations?.({ subtree: true }) ?? [] } catch { anims = [] }
+      anims.forEach(a => { try { a.pause() } catch { /* noop */ } })
+      setTimeout(() => {
+        anims.forEach(a => { try { a.play() } catch { /* noop */ } })
+      }, ms)
     },
   }), [])
 

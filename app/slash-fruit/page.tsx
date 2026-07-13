@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useHandLandmarker } from '@/hooks/useHandLandmarker'
 import { useCamera } from '@/hooks/useCamera'
-import { useSlashDetector } from '@/hooks/useSlashDetector'
+import { useSlashDetector, juiceToneForId } from '@/hooks/useSlashDetector'
 import type { SlashTarget } from '@/hooks/useSlashDetector'
 import { saveGameSession, computeZones } from '@/lib/saveSession'
 import { usePoseMonitor } from '@/hooks/usePoseMonitor'
@@ -220,6 +220,7 @@ function PlayingView({
   const [bombHits, setBombHits]  = useState(0)
   const [targets, setTargets]    = useState<SlashTarget[]>([])
   const [noHand, setNoHand]      = useState(false)
+  const [combo, setCombo]        = useState(0)
 
   const phaseRef     = useRef<'countdown' | 'playing' | 'ended'>('countdown')
   const targetsRef   = useRef<SlashTarget[]>([])
@@ -227,6 +228,7 @@ function PlayingView({
   const missCountRef = useRef(0)
   const bombHitsRef  = useRef(0)
   const scoreRef     = useRef(0)
+  const comboRef     = useRef(0)
   const recordsRef   = useRef<HitRecord[]>([])
   const savedRef     = useRef(false)
   const noHandTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -311,6 +313,9 @@ function PlayingView({
       setBombHits(n => n + 1)
       scoreRef.current = Math.max(0, scoreRef.current - 5)
       setScore(scoreRef.current)
+      // 碰到炸彈才中斷連擊（屬於「主動失誤」；漏接飛行目標不算,見 handleExpired 註解）
+      comboRef.current = 0
+      setCombo(0)
       juiceRef.current?.burst(nx, ny, { colors: ['#616161', '#424242', '#9e9e9e'], emojis: ['💨'], count: 10 })
       juiceRef.current?.floatText(nx, ny - 0.06, '−5', { color: '#ef5350' })
       juiceRef.current?.shake(1)
@@ -323,9 +328,22 @@ function PlayingView({
       setHitCount(n => n + 1)
       setScore(scoreRef.current)
       recordsRef.current.push({ nx, ny, reactionMs, type: 'fruit' })
-      juiceRef.current?.burst(nx, ny, { emojis: ['✨', '💧'] })
+
+      comboRef.current++
+      setCombo(comboRef.current)
+
+      // 爆汁噴濺用水果本色（美術聖經 §1.3／§7 P1），跟目標本體光暈同一顆 id 取色
+      const tone = juiceToneForId(id)
+      juiceRef.current?.burst(nx, ny, { colors: [tone, '#FFFFFF'], emojis: ['💧', '✨'] })
+      juiceRef.current?.slashFlash(nx, ny, { color: tone })
       juiceRef.current?.floatText(nx, ny - 0.06, '+10')
       juiceRef.current?.shake(0.4)
+
+      // Combo 里程碑（每 5 連擊）：金色大演出＋短暫頓幀（聖經 §5.4，克制使用，只在里程碑觸發）
+      if (comboRef.current >= 5 && comboRef.current % 5 === 0) {
+        juiceRef.current?.comboBurst(nx, ny - 0.1, comboRef.current)
+        juiceRef.current?.hitStop(100)
+      }
     }
   }, [reportHit])
 
@@ -335,6 +353,8 @@ function PlayingView({
     missCountRef.current++
     setMissCount(n => n + 1)
     reportMiss()
+    // 連擊刻意不因「漏接」中斷——中風患者搆取失敗常是動作限制而非疏忽，
+    // 聖經「暖色鼓勵、不懲罰」的精神延伸到這個純視覺演出上；真正的失誤（碰到炸彈）才斷連擊。
   }, [reportMiss])
 
   const { handDetected, setTargets: syncDetector } = useSlashDetector({
@@ -419,6 +439,20 @@ function PlayingView({
         {/* 命中特效層（粒子/彈跳字/微震） */}
         <JuiceLayer ref={juiceRef} />
 
+        {/* Combo 演出（聖經 §4：亮底場景用陽光金，不用霓虹） */}
+        {phase === 'playing' && combo >= 3 && (
+          <div
+            key={combo}
+            className="absolute top-3 left-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-black/55 text-amber-300 font-black text-lg pointer-events-none"
+            style={{
+              boxShadow: '0 0 18px rgba(255,214,0,0.5)',
+              animation: 'comboPulse 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+            }}
+          >
+            🔥 {combo} 連擊！
+          </div>
+        )}
+
         {/* Countdown overlay */}
         {phase === 'countdown' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50">
@@ -448,6 +482,15 @@ function PlayingView({
 
         <SceneFront theme="orchard" />
       </div>
+
+      {/* Combo pill 進場關鍵幀（同 whack-mole molePulse 的 inline style 慣例） */}
+      <style>{`
+        @keyframes comboPulse {
+          0%   { transform: translate(-50%, -6px) scale(0.7); opacity: 0; }
+          60%  { transform: translate(-50%, 0) scale(1.12); opacity: 1; }
+          100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }
