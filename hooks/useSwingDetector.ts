@@ -1,7 +1,7 @@
 'use client'
 
-// 揮拍偵測：追蹤手腕位置＋速度，羽球飛入擊球區時
-// 「靠近＋揮速超過門檻」才算擊中（swing mechanic）。
+// 揮拍偵測（第三人稱版）：手腕左右移動＝場上角色跑位，揮速超過門檻＝揮拍。
+// 羽球落到擊球區時，「角色跑到位＋揮速達標」才算回擊。
 // 與 useSlashDetector 同族，但目標是單顆拋物線羽球、且命中需要速度。
 
 import { useEffect, useRef, useState } from 'react'
@@ -38,7 +38,7 @@ interface UseSwingDetectorOptions {
   canvasRef:   React.RefObject<HTMLCanvasElement>
   isActive:    boolean
   isMirrored:  boolean
-  /** 揮速門檻（normalized units/sec）；低於此速度碰到球也不算擊中 */
+  /** 揮速門檻（normalized units/sec）；低於此速度球到了也打不到 */
   swingThreshold: number
   onHit:    (id: number, info: { speed: number; nx: number; ny: number; reactionMs: number }) => void
   /** 羽球落地（in=個案漏接、out=飛抵對手側） */
@@ -46,7 +46,9 @@ interface UseSwingDetectorOptions {
 }
 
 const SPEED_WINDOW_MS = 140   // 揮速取樣窗
-const HITTABLE_T      = 0.45  // 飛行進度超過此值才進入擊球區（過網後）
+const AVATAR_Y        = 0.76  // 角色的拍面高度（normalized）
+const GROUND_Y        = 0.9   // 角色腳底／影子位置
+const HIT_MIN_NY      = 0.52  // 羽球降到此高度以下才進入擊球區
 
 export function useSwingDetector({
   landmarker, videoRef, canvasRef, isActive, isMirrored, swingThreshold, onHit, onLanded,
@@ -65,6 +67,8 @@ export function useSwingDetector({
 
   const rafRef        = useRef<number | null>(null)
   const samplesRef    = useRef<{ t: number; x: number; y: number }[]>([])
+  const avatarXRef    = useRef(0.5)   // EMA 平滑後的角色位置
+  const swingPoseRef  = useRef(0)     // 揮拍姿勢殘留（>0 = 拍子舉起，逐幀衰減）
   const trajRef       = useRef<number[][]>([])
   const trajStartRef  = useRef(-1)
   const lastSampleRef = useRef(-1)
@@ -89,7 +93,6 @@ export function useSwingDetector({
       // 軟木頭（下）＋ 羽毛錐（上）——手繪，因為沒有羽球 emoji
       ctx.save()
       ctx.translate(cx, cy)
-      // 羽毛錐
       ctx.beginPath()
       ctx.moveTo(0, r * 0.15)
       ctx.lineTo(-r * 0.55, -r * 0.9)
@@ -100,13 +103,11 @@ export function useSwingDetector({
       ctx.strokeStyle = 'rgba(148,163,184,0.9)'
       ctx.lineWidth = 1.5
       ctx.stroke()
-      // 羽毛紋
       ctx.beginPath()
       ctx.moveTo(0, r * 0.1); ctx.lineTo(0, -r * 0.85)
       ctx.moveTo(-r * 0.28, -r * 0.2); ctx.lineTo(-r * 0.45, -r * 0.88)
       ctx.moveTo(r * 0.28, -r * 0.2); ctx.lineTo(r * 0.45, -r * 0.88)
       ctx.stroke()
-      // 軟木頭
       ctx.beginPath()
       ctx.arc(0, r * 0.3, r * 0.32, 0, Math.PI * 2)
       ctx.fillStyle = '#fca5a5'
@@ -114,6 +115,46 @@ export function useSwingDetector({
       ctx.strokeStyle = '#ef4444'
       ctx.stroke()
       ctx.restore()
+    }
+
+    /** 場上的你：兔子選手＋球拍（canvas 有 CSS 鏡像，emoji 用反轉補償繪製） */
+    function drawAvatar(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, nx: number, charged: boolean, scale: number) {
+      const cx = (1 - nx) * canvas.width
+      const groundY = GROUND_Y * canvas.height
+      const bodyY   = AVATAR_Y * canvas.height
+
+      // 影子
+      ctx.beginPath()
+      ctx.ellipse(cx, groundY, 46 * scale, 12 * scale, 0, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(0,0,0,0.22)'
+      ctx.fill()
+
+      // 充能光圈（揮速達標）
+      if (charged) {
+        ctx.beginPath()
+        ctx.arc(cx, bodyY, 58 * scale, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(74,222,128,0.22)'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(74,222,128,0.85)'
+        ctx.lineWidth = 4
+        ctx.stroke()
+      }
+
+      // 兔子＋球拍（swingPose >0 時拍子舉高＝揮拍動作）
+      const pose = swingPoseRef.current
+      ctx.save()
+      ctx.scale(-1, 1)   // 抵銷 CSS 鏡像，emoji 不左右顛倒
+      ctx.font = `${74 * scale}px serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('🐰', -cx, bodyY + 8 * scale)
+      // 球拍：平時垂在側邊，揮拍瞬間舉起旋轉
+      ctx.translate(-cx + 34 * scale, bodyY + (4 - pose * 26) * scale)
+      ctx.rotate((0.6 - pose * 1.7))
+      ctx.font = `${40 * scale}px serif`
+      ctx.fillText('🏸', 0, 0)
+      ctx.restore()
+      swingPoseRef.current = Math.max(0, pose - 0.07)
     }
 
     function loop() {
@@ -139,25 +180,64 @@ export function useSwingDetector({
       if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
       const scale = canvas.width / 640
 
-      // ── 羽球：畫圖＋落地判定 ─────────────────────────────
+      // ── 手腕偵測＋揮速＋角色跑位 ─────────────────────────
+      let speed = 0
+      let tracked = false
+      if (results && results.landmarks.length > 0) {
+        tracked = true
+        const wrist: NormalizedLandmark = results.landmarks[0][0]
+        const [wx, wy] = applyCalib(wrist.x, wrist.y, cal)
+        const nx = isMirrored ? 1 - wx : wx
+        const ny = wy
+
+        const samples = samplesRef.current
+        samples.push({ t: now, x: nx, y: ny })
+        while (samples.length > 1 && now - samples[0].t > SPEED_WINDOW_MS) samples.shift()
+        if (samples.length >= 2) {
+          const a = samples[0], b = samples[samples.length - 1]
+          const dt = (b.t - a.t) / 1000
+          if (dt > 0.03) speed = Math.hypot(b.x - a.x, b.y - a.y) / dt
+        }
+
+        // 角色只跟手腕的左右位置（EMA 平滑防抖）
+        avatarXRef.current += (nx - avatarXRef.current) * 0.35
+
+        // 約 10Hz 取樣手部軌跡（動作分析管線）
+        if (trajStartRef.current < 0) trajStartRef.current = now
+        if (now - lastSampleRef.current >= 100) {
+          lastSampleRef.current = now
+          trajRef.current.push([Math.round(now - trajStartRef.current), Math.round(nx * 1000) / 1000, Math.round(ny * 1000) / 1000])
+        }
+      } else {
+        samplesRef.current = []
+      }
+      setHandDetected(tracked)
+      setSwingSpeed(speed)
+
+      const charged = speed >= thresholdRef.current
+      if (charged) swingPoseRef.current = 1
+
+      // ── 羽球：畫圖＋擊球區光圈＋落地判定 ──────────────────
       const shuttle = shuttleRef.current
       let sPos: { t: number; nx: number; ny: number } | null = null
       if (shuttle && !doneIdsRef.current.has(shuttle.id)) {
         sPos = getShuttlePos(shuttle, now)
         if (ctx) {
-          // canvas 有 CSS scaleX(-1)，畫在 (1-nx) 讓螢幕呈現 nx
-          const cx = (1 - sPos.nx) * canvas.width
-          const cy = sPos.ny * canvas.height
-          const r  = shuttle.hitRadiusPx * scale
-          if (shuttle.phase === 'in' && sPos.t >= HITTABLE_T) {
-            // 進入擊球區：畫可擊光圈
+          const scx = (1 - sPos.nx) * canvas.width
+          const scy = sPos.ny * canvas.height
+          const r   = shuttle.hitRadiusPx * scale
+          if (shuttle.phase === 'in') {
+            // 落點預告圈（幫長輩提前跑位）
+            const lx = (1 - shuttle.x1) * canvas.width
             ctx.beginPath()
-            ctx.arc(cx, cy, r, 0, Math.PI * 2)
-            ctx.strokeStyle = 'rgba(74,222,128,0.55)'
+            ctx.ellipse(lx, GROUND_Y * canvas.height, r * 0.75, r * 0.22, 0, 0, Math.PI * 2)
+            ctx.strokeStyle = sPos.ny >= HIT_MIN_NY ? 'rgba(74,222,128,0.8)' : 'rgba(255,255,255,0.45)'
             ctx.lineWidth = 3
+            ctx.setLineDash([8, 7])
             ctx.stroke()
+            ctx.setLineDash([])
           }
-          drawShuttle(ctx, cx, cy, Math.max(18, r * 0.42))
+          drawShuttle(ctx, scx, scy, Math.max(18, r * 0.42))
         }
         if (sPos.t >= 1) {
           doneIdsRef.current.add(shuttle.id)
@@ -165,70 +245,16 @@ export function useSwingDetector({
         }
       }
 
-      // ── 手腕偵測＋揮速 ───────────────────────────────────
-      if (!results || results.landmarks.length === 0) {
-        setHandDetected(false)
-        setSwingSpeed(0)
-        samplesRef.current = []
-        rafRef.current = requestAnimationFrame(loop)
-        return
-      }
-      setHandDetected(true)
+      // ── 場上角色 ─────────────────────────────────────────
+      if (ctx && tracked) drawAvatar(ctx, canvas, avatarXRef.current, charged, scale)
 
-      const wrist: NormalizedLandmark = results.landmarks[0][0]
-      const [wx, wy] = applyCalib(wrist.x, wrist.y, cal)
-      const nx = isMirrored ? 1 - wx : wx
-      const ny = wy
-
-      // 揮速：近 SPEED_WINDOW_MS 內的位移 / 時間
-      const samples = samplesRef.current
-      samples.push({ t: now, x: nx, y: ny })
-      while (samples.length > 1 && now - samples[0].t > SPEED_WINDOW_MS) samples.shift()
-      let speed = 0
-      if (samples.length >= 2) {
-        const a = samples[0], b = samples[samples.length - 1]
-        const dt = (b.t - a.t) / 1000
-        if (dt > 0.03) speed = Math.hypot(b.x - a.x, b.y - a.y) / dt
-      }
-      setSwingSpeed(speed)
-
-      // 約 10Hz 取樣手部軌跡（動作分析管線）
-      if (trajStartRef.current < 0) trajStartRef.current = now
-      if (now - lastSampleRef.current >= 100) {
-        lastSampleRef.current = now
-        trajRef.current.push([Math.round(now - trajStartRef.current), Math.round(nx * 1000) / 1000, Math.round(ny * 1000) / 1000])
-      }
-
-      // 手腕游標：外圈依揮速充能（達門檻變綠＝揮拍中）
-      if (ctx) {
-        const cx = wx * canvas.width
-        const cy = wy * canvas.height
-        const charged = speed >= thresholdRef.current
-        ctx.beginPath()
-        ctx.arc(cx, cy, 20 * scale, 0, Math.PI * 2)
-        ctx.fillStyle = charged ? 'rgba(74,222,128,0.35)' : 'rgba(255,255,255,0.2)'
-        ctx.fill()
-        ctx.strokeStyle = charged ? '#4ade80' : '#FFFFFF'
-        ctx.lineWidth = charged ? 4 : 2.5
-        ctx.stroke()
-        // 拍子 emoji 跟著手腕
-        ctx.save()
-        ctx.scale(-1, 1)   // 抵銷 CSS 鏡像，讓 emoji 不左右顛倒
-        ctx.font = `${44 * scale}px serif`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText('🏸', -cx, cy - 34 * scale)
-        ctx.restore()
-      }
-
-      // ── 擊中判定：靠近＋揮速達標＋在擊球區 ────────────────
+      // ── 擊中判定：球進擊球區＋角色跑到位＋揮速達標 ────────
       if (shuttle && sPos && !doneIdsRef.current.has(shuttle.id)
-          && shuttle.phase === 'in' && sPos.t >= HITTABLE_T) {
-        const r  = shuttle.hitRadiusPx * scale
-        const dx = (nx - sPos.nx) * canvas.width
-        const dy = (ny - sPos.ny) * canvas.height
-        if (Math.hypot(dx, dy) < r && speed >= thresholdRef.current) {
+          && shuttle.phase === 'in' && sPos.ny >= HIT_MIN_NY && sPos.t < 1 && tracked) {
+        const dx = Math.abs(avatarXRef.current - sPos.nx) * canvas.width
+        if (dx < shuttle.hitRadiusPx * scale * 1.35 && charged) {
           doneIdsRef.current.add(shuttle.id)
+          swingPoseRef.current = 1
           onHitRef.current(shuttle.id, {
             speed: Math.round(speed * 100) / 100,
             nx: sPos.nx, ny: sPos.ny,

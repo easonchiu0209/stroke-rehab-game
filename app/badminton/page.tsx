@@ -70,7 +70,7 @@ function ConfigView({
       <div className="text-center">
         <div className="text-6xl mb-2">🏸</div>
         <h1 className="text-4xl font-extrabold text-emerald-900">復能羽球</h1>
-        <p className="text-gray-500 mt-1 text-base">揮動手臂把羽球打回去，和對手來回對打，訓練揮臂速度與大範圍活動</p>
+        <p className="text-gray-500 mt-1 text-base">你的手就是場上的兔子選手：左右移動跑位、用力一揮擊球，和熊熊來回對打</p>
       </div>
 
       <div className="w-full max-w-lg bg-white rounded-2xl border border-emerald-100 p-4 shadow-sm">
@@ -121,7 +121,7 @@ function ConfigView({
       </div>
 
       <p className="text-sm text-gray-500 max-w-lg text-center">
-        💡 羽球飛過網後出現綠色光圈，把手「揮」進光圈——手腕游標變綠代表揮速夠快。坐著玩就可以。
+        💡 地上的虛線圈是球的落點——左右移動手臂讓 🐰 跑過去，球落下時「用力一揮」就能打回去（兔子發光代表揮速夠快）。坐著玩就可以。
       </p>
 
       <div className="flex gap-4 w-full max-w-lg">
@@ -235,7 +235,7 @@ function PlayingView({
     const f = getFactor()   // DDA：>1 = 更難 = 球更快
     setShuttleState({
       id: performance.now() + Math.random(),
-      x0: fromX, y0: 0.16, x1: landX, y1: 0.95,
+      x0: fromX, y0: 0.16, x1: landX, y1: 0.9,
       flightMs: cfg.flightMs / f,
       arcH: 0.30 + Math.random() * 0.12,
       spawnTime: performance.now(),
@@ -409,7 +409,7 @@ function PlayingView({
           <div className={`absolute bottom-4 left-4 px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
             charged ? 'bg-green-500/80 text-white' : 'bg-black/50 text-gray-300'
           }`}>
-            {charged ? '⚡ 揮拍中！' : '揮動手臂來擊球'}
+            {charged ? '⚡ 揮拍中！' : '移動手臂跑位・用力揮擊球'}
           </div>
         )}
 
@@ -420,7 +420,7 @@ function PlayingView({
             <div className="text-yellow-400 text-9xl font-black" style={{ textShadow: '0 0 40px rgba(255,214,0,0.7)' }}>
               {countdown > 0 ? countdown : '發球！'}
             </div>
-            <p className="text-white text-lg mt-6 opacity-60">球過網後，把手揮進綠色光圈</p>
+            <p className="text-white text-lg mt-6 opacity-60">移動手臂讓 🐰 跑到虛線落點，用力一揮！</p>
           </div>
         )}
 
