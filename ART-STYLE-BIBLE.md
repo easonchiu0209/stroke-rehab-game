@@ -81,12 +81,20 @@ background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.85), rgba(255,
 ```
 - 高光位置固定左上（與頂光一致），讓所有球體/水果/氣泡一眼同源。
 
-### 2.3 可擊光暈（給長者的「這裡可以打」提示，中性白）
+### 2.3 可擊光暈（給長者的「這裡可以打」提示）
+脈動本體用 **box-shadow 外擴光環**：由不透明 `0px` 擴散到 `14px` 全透明，平滑漸出、不閃爍：
+```css
+@keyframes haloPulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0    rgba(255,214,0,0.5); }
+  50%      { transform: scale(1.07); box-shadow: 0 0 0 14px rgba(255,214,0,0);   }
+}
+animation: haloPulse 1.2s ease-in-out infinite;
+```
+可另加一層**中性白填底**提升目標在雜亂背景上的辨識（此層是靜態填底，非脈動本體）：
 ```css
 background: radial-gradient(circle, rgba(255,255,255,0.5), rgba(255,255,255,0.12) 55%, transparent 70%);
-animation: targetPulse 1.2s ease-in-out infinite;   /* 呼吸，不閃爍 */
 ```
-（現行 whack-mole `molePulse`、tailwind `target-pulse` 皆為此規範的實例。）
+實作參照：`tailwind.config.ts:29-37`（`target-pulse`，藍光版 0→16px、scale 1.04）、`app/whack-mole/page.tsx:418-419`（`molePulse`，金光版 0→14px、scale 1.07）；白填底層見 `app/whack-mole/page.tsx:331`。
 
 ### 2.4 場景天空漸層（滿版背景，沿用現行 SceneKit `SKY`）
 統一用「上淺下深、天→地」的雙/三段線性漸層，飽和度中低：
@@ -200,7 +208,9 @@ box-shadow: 0 0 24px rgba(34,211,238,0.4);           /* combo 霓虹光，僅暗
 
 ## 6. AI 生圖 Prompt 模板 (Copy-Paste Ready)
 
-用途：只生**靜態底圖**（角色/道具/背景），動態爽感全交給 §4/§5 程序層。統一風格關鍵詞確保 13 款遊戲同一世界觀。輸出建議 **PNG 透明去背**（角色/道具）或 **無縫可平鋪**（背景帶）。存 `public/assets/<場景或遊戲>/`。
+用途：只生**靜態底圖**（角色/道具/背景），動態爽感全交給 §4/§5 程序層。統一風格關鍵詞確保 13 款遊戲同一世界觀。輸出建議 **PNG 透明去背**（角色/道具）或 **無縫可平鋪**（背景帶）。
+
+**存放位置**：現有資產目錄為 `public/assets/scene/`（跨遊戲共用場景帶：天空背景、雲層、草地）與 `public/assets/gallery/`（打地鼠射擊場專用素材）。新遊戲的專屬資產放 `public/assets/<game-id>/`——**該目錄不存在時先建立**；跨遊戲可共用的場景帶則放進 `public/assets/scene/`。
 
 **共用風格關鍵詞（所有 prompt 都貼上）**：
 ```
@@ -257,7 +267,7 @@ low-mid saturation so foreground targets pop, [共用風格關鍵詞]
 | **復能太空射擊** (space-shooter) | shooter | 瞄準＋三開槍模式 | 暗底＋霓虹 combo（§1.4/§2.6）；擊落用 juiceSquash | P1：擊中霓虹 burst＋combo 數字；P2：AI 生飛船/隕石 |
 | **復能開心農場** (farm) | 養成 | 主題背景漸層＋emoji 作物＋商店 | 作物成熟用 juicePopIn；收成噴金幣星星；THEMES 漸層對齊 §2.4 | P2：作物三階段生長底圖（AI）；收成彩紙 |
 | **復能水族箱** (aquarium) | static+養成 | 藍色漸層水族背景＋養魚圖鑑 | 氣泡＝圓潤高光球（§2.2）；餵食/長大 pop；珍珠金光暈 | P2：AI 生魚種底圖；水面光斑＋緩慢氣泡粒子 |
-| **節奏復能鼓** (rhythm-drum) *待建* | rhythm | 尚無（以 static 為底加節拍）| **首發即全套上聖經**：calm/starry 暗底＋霓虹節拍呼吸（§1.4）＋beat 命中 combo 光效（§4）＋鼓面 juiceSquash＋hit-stop（§5.4）| P1（開發即做）：節拍點用 targetPulse 對齊 BPM；完美命中霓虹 burst＋金分數；背景隨節奏輕微明暗呼吸（≤3Hz） |
+| **節奏復能鼓** (rhythm-drum) *待建* | rhythm | 尚無（以 static 為底加節拍）| **首發即全套上聖經**（流程順序：spec 規格核可 → 開發 → 開發中即遵本聖經 §1–6）：calm/starry 暗底＋霓虹節拍呼吸（§1.4）＋beat 命中 combo 光效（§4）＋鼓面 juiceSquash＋hit-stop（§5.4）| P1（開發即做）：節拍點用 targetPulse 對齊 BPM；完美命中霓虹 burst＋金分數；背景隨節奏輕微明暗呼吸（≤3Hz） |
 
 > **通則**：任一遊戲升級後，命中一定有「粒子＋彈跳字＋微震」三件套（§4/§5），目標一定有「呼吸光暈＋落地陰影＋圓潤高光」三件套（§2）。缺其一即未達本聖經標準。
 

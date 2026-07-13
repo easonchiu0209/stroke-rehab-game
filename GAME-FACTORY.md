@@ -58,7 +58,7 @@
 6. **首頁註冊**：在 `app/page.tsx` 的 `GAMES` 陣列加一筆 `GameCardData`（id/emoji/title/subtitle/level/levelBadge/description/route=`/<id>`/available）。
 7. **個人頁名稱**：在 `app/profile/page.tsx` 的 `GAME_NAMES` 加 `'<id>': '<title>'`。
 8. **語言**：所有 UI 文案用繁體中文，風格對齊現有遊戲（鼓勵、長者友善）。
-9. **美術對齊（必做）**：視覺一律遵 `ART-STYLE-BIBLE.md`（統一色板／光影／形狀／粒子／juice）。目標物必備「呼吸光暈＋落地陰影＋圓潤高光」三件套；命中必備「粒子 `burst`＋彈跳字 `floatText`＋微震 `shake`」三件套（皆走共用 `components/game/JuiceLayer.tsx`，不自造）。色彩取聖經 §1 色板，動畫數值取 §5，適老紅線（無 >3Hz 閃爍、震動 ≤6px、無懲罰演出）不可違反。需 AI 生底圖時，用聖經 §6 prompt 模板（含共用風格＋負面關鍵詞），存 `public/assets/<id>/`。
+9. **美術對齊（必做）**：視覺一律遵 `ART-STYLE-BIBLE.md`（統一色板／光影／形狀／粒子／juice）。目標物必備「呼吸光暈＋落地陰影＋圓潤高光」三件套；命中必備「粒子 `burst`＋彈跳字 `floatText`＋微震 `shake`」三件套（皆走共用 `components/game/JuiceLayer.tsx`，不自造）。色彩取聖經 §1 色板，動畫數值取 §5，適老紅線（無 >3Hz 閃爍、震動 ≤6px、無懲罰演出）不可違反。需 AI 生底圖時，用聖經 §6 prompt 模板（含共用風格＋負面關鍵詞），存 `public/assets/<id>/`（目錄需先建立，見聖經 §6）。流程順序：spec 規格核可（本契約 §6 核可清單）→ 開發 → 開發中即遵聖經 §1–6 做視覺，不是做完再補。
 
 ## 4. 驗證 + 自動除錯（Workflow 的除錯階段）
 每生成一款後，在 `stroke-rehab-game/` 執行：
