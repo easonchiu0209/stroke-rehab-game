@@ -11,6 +11,7 @@ import CompensationHint from '@/components/game/CompensationHint'
 import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
+import { CourtScene } from '@/components/game/SceneKit'
 
 // ── Types & config ────────────────────────────────────────────────────────────
 
@@ -375,18 +376,17 @@ function PlayingView({
       </div>
 
       {/* Court + camera */}
-      <div className="relative flex-1 overflow-hidden bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-800">
-        {/* 球場線＋網 */}
-        <div className="absolute inset-x-[8%] top-[30%] h-1 bg-white/25 rounded" />
-        <div className="absolute inset-x-[8%] top-[30%] h-6 -translate-y-full"
-          style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 10px), repeating-linear-gradient(0deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 8px)' }} />
-        <div className="absolute inset-x-[8%] bottom-[4%] h-1 bg-white/15 rounded" />
+      <div className="relative flex-1 overflow-hidden bg-emerald-900">
+        <CourtScene />
 
         {/* 對手 */}
-        <div className="absolute top-[6%] -translate-x-1/2 transition-all duration-500 ease-out text-center z-[5]"
+        <div className="absolute top-[6%] -translate-x-1/2 transition-all duration-500 ease-out z-[5]"
           style={{ left: `${oppX * 100}%` }}>
-          <div className="text-5xl">🐻</div>
-          <div className="text-2xl -mt-3">🏸</div>
+          <div className="relative flex flex-col items-center">
+            <div className="text-5xl" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>🐻</div>
+            <img src="/assets/gallery/racket_wood.png" alt="" className="absolute -right-6 top-8"
+              style={{ width: 44, transform: 'rotate(-55deg)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }} />
+          </div>
         </div>
 
         <video

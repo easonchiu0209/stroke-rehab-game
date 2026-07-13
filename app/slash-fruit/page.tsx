@@ -12,7 +12,8 @@ import CompensationHint from '@/components/game/CompensationHint'
 import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
-import { SceneBack, SceneFront } from '@/components/game/GameScene'
+import { SceneFront } from '@/components/game/GameScene'
+import { OrchardScene } from '@/components/game/SceneKit'
 
 // ── Types & config ────────────────────────────────────────────────────────────
 
@@ -399,7 +400,7 @@ function PlayingView({
 
       {/* Camera + canvas */}
       <div className="relative flex-1 overflow-hidden bg-black">
-        <SceneBack theme="orchard" />
+        <OrchardScene />
         <video
           ref={videoRef}
           autoPlay playsInline muted

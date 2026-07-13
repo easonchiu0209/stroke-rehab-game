@@ -12,7 +12,8 @@ import CompensationHint from '@/components/game/CompensationHint'
 import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, speak } from '@/lib/feedback'
-import { SceneBack, SceneFront } from '@/components/game/GameScene'
+import { SceneFront } from '@/components/game/GameScene'
+import { GalleryScene } from '@/components/game/SceneKit'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -297,7 +298,7 @@ function PlayingView({
       <div ref={areaRef} className="relative flex-1 overflow-hidden bg-black">
 
         {/* Themed background behind the camera */}
-        <SceneBack theme="meadow" />
+        <GalleryScene />
 
         {/* Camera feed + canvas overlay */}
         <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ transform: isMirrored ? 'scaleX(-1)' : undefined, opacity: 0 }} />
@@ -309,40 +310,46 @@ function PlayingView({
         {/* 命中特效層（粒子/彈跳字/微震） */}
         <JuiceLayer ref={juiceRef} />
 
-        {/* Mole targets */}
+        {/* Duck targets（射擊場小鴨：命中判定仍在 detector，這裡只是視覺） */}
         {moles.map((mole) => {
           const isHit = hitMoleIds.has(mole.id)
+          const duck  = ['duck_target_yellow', 'duck_target_white', 'duck_target_brown'][Math.floor(mole.id) % 3]
           return (
             <div
               key={mole.id}
               className="absolute pointer-events-none"
               style={{
-                left:      `calc(${mole.nx * 100}% - ${cssRadiusPx}px)`,
-                top:       `calc(${mole.ny * 100}% - ${cssRadiusPx}px)`,
-                width:     cssRadiusPx * 2,
-                height:    cssRadiusPx * 2,
-                borderRadius: '50%',
-                background: isHit
-                  ? 'radial-gradient(circle, #FFD600, #FF6F00)'
-                  : 'radial-gradient(circle at 40% 35%, #ffffff, #e8f5e9 40%, #4CAF50 100%)',
-                border:    isHit ? '4px solid #FF6F00' : '4px solid #fff',
-                boxShadow: isHit
-                  ? '0 0 50px rgba(255,214,0,1)'
-                  : '0 4px 20px rgba(0,0,0,0.7), 0 0 0 4px rgba(255,255,255,0.3)',
-                transform:   isHit ? 'scale(1.6)' : 'scale(1)',
-                opacity:     isHit ? 0 : 1,
-                transition:  isHit ? 'transform 0.25s ease-out, opacity 0.25s' : 'none',
-                animation:   isHit
-                  ? 'none'
-                  : 'juicePopIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both, molePulse 1.2s ease-in-out 0.35s infinite',
-                display:     'flex',
-                alignItems:  'center',
-                justifyContent: 'center',
-                fontSize:    cssRadiusPx * 1.1,
-                lineHeight:  1,
+                left:   `calc(${mole.nx * 100}% - ${cssRadiusPx}px)`,
+                top:    `calc(${mole.ny * 100}% - ${cssRadiusPx}px)`,
+                width:  cssRadiusPx * 2,
+                height: cssRadiusPx * 2,
               }}
             >
-              🐭
+              {/* 可擊光暈（給長輩的目標提示） */}
+              <div className="absolute inset-0" style={{
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(255,255,255,0.5), rgba(255,255,255,0.12) 55%, transparent 70%)',
+                animation: isHit ? 'none' : 'molePulse 1.2s ease-in-out 0.35s infinite',
+                opacity: isHit ? 0 : 1,
+              }} />
+              {/* 木棍＋小鴨（打中就往後倒） */}
+              <div className="absolute inset-x-0 bottom-0 flex flex-col items-center" style={{
+                height: '100%',
+                transformOrigin: 'bottom center',
+                transform: isHit ? 'rotate(-84deg) translateY(8%)' : 'rotate(0deg)',
+                opacity: isHit ? 0 : 1,
+                transition: isHit ? 'transform 0.3s cubic-bezier(0.5,0,0.8,0.4), opacity 0.32s 0.05s' : 'none',
+                animation: isHit ? 'none' : 'juicePopIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both',
+              }}>
+                <img src={`/assets/gallery/${duck}.png`} alt="" style={{
+                  width: '78%',
+                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.35))',
+                }} />
+                <img src="/assets/gallery/stick_wood.png" alt="" style={{
+                  height: '34%', marginTop: '-6%',
+                  filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.3))',
+                }} />
+              </div>
             </div>
           )
         })}
