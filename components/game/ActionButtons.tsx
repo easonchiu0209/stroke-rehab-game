@@ -17,10 +17,10 @@ export function ActionButtons({ onSuccess, onFail, disabled, compact = false }: 
           disabled={disabled}
           className="
             flex-1
-            bg-red-50 text-red-700 border-2 border-red-300
+            bg-red-50/95 text-red-800 border border-red-300
             text-base font-bold
             min-h-[56px] rounded-xl
-            hover:bg-red-100
+            hover:bg-red-100 choice-button
             active:scale-[0.97]
             disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
             transition-all duration-150 no-select
@@ -35,10 +35,10 @@ export function ActionButtons({ onSuccess, onFail, disabled, compact = false }: 
           disabled={disabled}
           className="
             flex-1
-            bg-green-50 text-green-700 border-2 border-green-300
+            bg-green-50/95 text-green-800 border border-green-300
             text-base font-bold
             min-h-[56px] rounded-xl
-            hover:bg-green-100
+            hover:bg-green-100 choice-button
             active:scale-[0.97]
             disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
             transition-all duration-150 no-select
@@ -60,10 +60,10 @@ export function ActionButtons({ onSuccess, onFail, disabled, compact = false }: 
         disabled={disabled}
         className="
           flex-1
-          bg-red-600 text-white
+          bg-gradient-to-b from-red-500 to-red-600 text-white
           text-2xl font-bold
           min-h-[88px] rounded-2xl
-          shadow-md shadow-red-200
+          choice-button shadow-red-200
           hover:bg-red-700
           active:scale-[0.97]
           disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
@@ -81,10 +81,10 @@ export function ActionButtons({ onSuccess, onFail, disabled, compact = false }: 
         disabled={disabled}
         className="
           flex-1
-          bg-green-600 text-white
+          bg-gradient-to-b from-emerald-500 to-green-600 text-white
           text-2xl font-bold
           min-h-[88px] rounded-2xl
-          shadow-md shadow-green-200
+          choice-button shadow-green-200
           hover:bg-green-700
           active:scale-[0.97]
           disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none

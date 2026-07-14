@@ -46,7 +46,7 @@ export function CameraView({
 
   return (
     <div
-      className="relative w-full rounded-2xl overflow-hidden bg-gray-900 shadow-xl"
+      className="relative w-full overflow-hidden rounded-3xl border border-white/80 bg-slate-950 shadow-2xl shadow-slate-900/25 ring-4 ring-white/55"
       style={{ aspectRatio: '4/3', maxHeight: '52vh' }}
     >
       {/* 鏡頭畫面 — 前置鏡頭才做水平翻轉 */}
@@ -70,15 +70,15 @@ export function CameraView({
 
       {/* 載入中 */}
       {!isReady && !error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/85 gap-3">
-          <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 gap-3 backdrop-blur-sm">
+          <div className="w-10 h-10 border-4 border-sky-300 border-t-transparent rounded-full animate-spin" />
           <p className="text-white text-lg font-semibold">開啟鏡頭中...</p>
         </div>
       )}
 
       {/* 鏡頭錯誤 */}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 p-6 gap-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 p-6 gap-4 backdrop-blur-sm">
           <div className="text-5xl">📷</div>
           <p className="text-white text-center text-base leading-relaxed whitespace-pre-line">
             {error.message}
@@ -89,7 +89,7 @@ export function CameraView({
       {/* 找不到手的提示 */}
       {isReady && !handDetected && landmarker && (
         <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none">
-          <div className="bg-black/65 text-white px-5 py-2.5 rounded-full text-base font-semibold">
+          <div className="bg-slate-950/70 text-white px-5 py-2.5 rounded-full text-base font-bold shadow-lg backdrop-blur">
             🖐 請將手放入鏡頭範圍
           </div>
         </div>
@@ -98,9 +98,9 @@ export function CameraView({
       {/* 持握進度提示（canvas 已畫底部進度條，這裡加頂部文字提示） */}
       {holdProgress > 0.05 && holdProgress < 1 && (
         <div className="absolute top-3 left-3 right-3 flex flex-col gap-1 pointer-events-none">
-          <div className="bg-black/40 rounded-full overflow-hidden h-3">
+          <div className="bg-slate-950/45 rounded-full overflow-hidden h-3 shadow-inner backdrop-blur">
             <div
-              className="h-3 rounded-full bg-green-400 transition-none"
+              className="h-3 rounded-full bg-gradient-to-r from-emerald-300 to-green-500 transition-none"
               style={{ width: `${holdProgress * 100}%` }}
             />
           </div>
@@ -113,7 +113,7 @@ export function CameraView({
       {/* AR 狀態角標 */}
       {isReady && landmarker && (
         <div className="absolute top-3 right-3 pointer-events-none">
-          <span className="bg-green-500/80 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
+          <span className="bg-green-500/85 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg backdrop-blur-sm">
             🎯 AR 偵測中
           </span>
         </div>
@@ -126,11 +126,11 @@ export function CameraView({
           disabled={isSwitching}
           className="
             absolute bottom-3 right-3
-            bg-black/50 backdrop-blur-sm text-white
+            bg-slate-950/55 backdrop-blur-sm text-white
             w-11 h-11 rounded-full
             flex items-center justify-center
             text-xl
-            hover:bg-black/70 active:scale-90
+            hover:bg-slate-950/75 active:scale-90
             transition-all duration-150
             disabled:opacity-50
           "

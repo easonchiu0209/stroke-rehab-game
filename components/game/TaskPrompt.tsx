@@ -25,18 +25,18 @@ export function TaskPrompt({ task, roundNumber }: TaskPromptProps) {
   return (
     <div
       className={`
-        w-full max-w-2xl mx-auto
-        bg-white rounded-2xl
+        w-full max-w-3xl mx-auto
+        game-card rounded-2xl
         border-l-8 ${borderColor}
-        shadow-md px-6 py-5
+        px-5 py-4 sm:px-6 sm:py-5
       `}
     >
-      <div className="text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wide">
+      <div className="text-sm font-bold text-slate-500 mb-1 uppercase tracking-wide">
         第 {roundNumber} 回合任務
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-4xl">{task.emoji}</span>
-        <p className={`text-3xl font-bold ${task.labelColor} leading-tight`}>
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/80 text-4xl shadow-inner soft-highlight">{task.emoji}</span>
+        <p className={`text-2xl sm:text-3xl font-black ${task.labelColor} leading-tight`}>
           {task.instruction}
         </p>
       </div>

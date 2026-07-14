@@ -25,6 +25,7 @@ const ROTATION: { id: string; name: string; emoji: string; route: string }[] = [
   { id: 'wipe-trace',    name: '擦拭軌跡',   emoji: '🧹', route: '/wipe-trace' },
   { id: 'fishing-king',  name: '復能釣魚王', emoji: '🐠', route: '/fishing-king' },
   { id: 'badminton',     name: '復能羽球',   emoji: '🏸', route: '/badminton' },
+  { id: 'rhythm-drum',   name: '節奏復能鼓', emoji: '🪘', route: '/rhythm-drum' },
 ]
 
 /** 台灣日期字串 YYYY-MM-DD */

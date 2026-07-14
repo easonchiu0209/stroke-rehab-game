@@ -33,6 +33,78 @@
     -webkit-user-select: none;
     user-select: none;
   }
+
+  .game-screen-bg {
+    position: relative;
+    overflow-x: hidden;
+    background:
+      linear-gradient(180deg, #dff5ff 0%, #ecfdf5 48%, #fff7ed 100%);
+  }
+
+  .game-screen-bg::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.32) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0));
+    background-size: 72px 72px, 72px 72px, 100% 52%;
+    mask-image: linear-gradient(180deg, black 0%, black 42%, transparent 78%);
+  }
+
+  .hud-glass {
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(18px);
+  }
+
+  .game-card {
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 18px 40px rgba(15, 23, 42, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(16px);
+  }
+
+  .game-stage-frame {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.46)),
+      linear-gradient(135deg, rgba(59, 130, 246, 0.13), rgba(34, 197, 94, 0.15) 52%, rgba(251, 191, 36, 0.14));
+    border: 1px solid rgba(255, 255, 255, 0.92);
+    box-shadow:
+      0 22px 46px rgba(15, 23, 42, 0.14),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.54);
+  }
+
+  .soft-highlight {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .soft-highlight::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.62), transparent 42%);
+  }
+
+  .choice-button {
+    box-shadow:
+      0 14px 28px rgba(15, 23, 42, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-target-pulse,
+    .juice-pop-in {
+      animation: none !important;
+    }
+  }
 }
 
 /* ── 列印報告（治療師後台 → 瀏覽器列印 → PDF）──────────────── */

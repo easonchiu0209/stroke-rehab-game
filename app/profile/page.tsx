@@ -45,6 +45,7 @@ const GAME_NAMES: Record<string, string> = {
   'rhythm-step':   '節奏踏步',
   'sit-to-stand':  '坐到站',
   'badminton':     '復能羽球',
+  'rhythm-drum':   '節奏復能鼓',
 }
 
 export default function ProfilePage() {

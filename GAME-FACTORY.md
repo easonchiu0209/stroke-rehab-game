@@ -15,7 +15,7 @@
 | `moving`  | `app/slash-fruit/page.tsx` | `useSlashDetector` | SlashTarget {id,x0,y0,vx,vy,gravity,spawnTime,hitRadiusPx,visualEm,type,emoji} |
 | `path`    | `app/wipe-trace/page.tsx` | `useTraceDetector` | 路徑點陣列 |
 | `zone`    | `app/game/page.tsx`（抓取放置）| `useZoneDetector` | 目標區域 |
-| `rhythm`  | （待建，第一個做時以 `static` 為底加上節拍計時）| `useMoleDetector` + 節拍邏輯 | 同 static + beatTime |
+| `rhythm`  | `app/rhythm-drum/page.tsx` | `useMoleDetector` + 節拍邏輯 | 同 static + beatTime（拍點時間窗判定） |
 | `shooter` | `app/space-shooter/page.tsx` | `useShooterDetector` | ShooterTarget {id,x0,y0,vx,vy,spawnTime,hitRadiusPx,visualEm,type,emoji}；瞄準＝食指尖，三種開槍模式 touch/dwell/pinch 對應三難度 |
 
 共用底層（所有遊戲都用）：`useHandLandmarker()`（模型）、`useCamera(videoRef)`（鏡頭、isMirrored）。
@@ -79,7 +79,7 @@ npm run build             # Next 編譯（完整驗證）
 - 復能釣魚王 (fishing-king, static) — 復能小精靈 (sprite-collect, moving) — 復能彈弓手 (slingshot, moving)
 - 復能小火車 (train-track, path) — 復能小巴士 (bus-route, path)
 - 復能守護村 (guard-village, zone) — 復能積木村 (block-build, zone) — 復能生活任務 (daily-tasks, zone)
-- 節奏復能鼓 (rhythm-drum, rhythm — 需建新引擎) — 復能採蘋果 (apple-pick, static) — 復能擦窗戶 (window-wipe, path)
+- 復能採蘋果 (apple-pick, static) — 復能擦窗戶 (window-wipe, path)
 
 ### 已生成上線：
 - 復能打地鼠 (whack-mole, static)
@@ -97,6 +97,7 @@ npm run build             # Next 編譯（完整驗證）
 - 重心平衡 (balance-shift, pose — 站姿) — 2026-06-26：Pose 重心偵測＋安全須知頁。
 - 爬牆挑戰 (wall-climb, pose — 骨科 O1) — 2026-07-07：肩角度估算＋ROM 落庫＋疼痛 NRS。⚠️ 臨床審核待簽（見 §8）。
 - 節奏踏步 (rhythm-step, pose — 神經 N1 下肢) — 2026-07-07：節拍器＋抬腿偵測＋左右對稱。⚠️ 臨床審核待簽（見 §8）。
+- 節奏復能鼓 (rhythm-drum, rhythm — 新引擎首發) — 2026-07-14：霓虹音符落鼓面＋拍點時間窗判定＋雙側交替（hard 含中央跨中線）。視覺照聖經 §7 全套（calm 暗底＋霓虹色板＋節拍呼吸）。⚠️ 臨床審核待簽（見 §8）。
 
 ## 7. 遊戲規格卡（新遊戲必填 — AI 指引 B 篇）
 

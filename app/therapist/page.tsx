@@ -11,7 +11,7 @@ const GAME_NAMES: Record<string, string> = {
   'space-shooter': '復能太空射擊', 'color-island': '彩球復能島', 'kitchen-catch': '復能小廚房',
   'touch-collect': '碰點收集', 'wipe-trace': '擦拭軌跡', 'grasp-place': '抓取放置',
   'fishing-king': '復能釣魚王', 'aquarium': '復能水族箱',
-  'pinch-sort': '夾取分類', 'balance-shift': '重心平衡', 'wall-climb': '爬牆挑戰', 'rhythm-step': '節奏踏步', 'sit-to-stand': '坐到站', 'badminton': '復能羽球',
+  'pinch-sort': '夾取分類', 'balance-shift': '重心平衡', 'wall-climb': '爬牆挑戰', 'rhythm-step': '節奏踏步', 'sit-to-stand': '坐到站', 'badminton': '復能羽球', 'rhythm-drum': '節奏復能鼓',
 }
 const gname = (g: string) => GAME_NAMES[g] ?? g
 

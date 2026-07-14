@@ -31,6 +31,7 @@ const GAMES: GameCardData[] = [
   { id: 'rhythm-step', emoji: '🥁', title: '節奏踏步', subtitle: '下肢節奏與左右協調', level: 'Level 1–3', levelBadge: 'bg-orange-100 text-orange-800', description: '跟著鼓聲節拍左右抬腿踏步，訓練下肢力量、步態節奏與左右對稱（坐姿可玩，安全優先）', route: '/rhythm-step', available: true },
   { id: 'sit-to-stand', emoji: '🪑', title: '坐到站', subtitle: '下肢肌力（骨科）', level: '30 秒挑戰', levelBadge: 'bg-teal-100 text-teal-800', description: '30 秒內完成越多次坐站越好，訓練下肢肌力與起身能力（需穩固椅子，建議陪同）', route: '/sit-to-stand', available: true },
   { id: 'badminton', emoji: '🏸', title: '復能羽球', subtitle: '揮臂速度與跨中線', level: 'Level 1–3', levelBadge: 'bg-emerald-100 text-emerald-800', description: '和對手來回對打羽球，揮動手臂把球打回去，訓練肩全範圍活動、揮臂速度與跨中線動作（坐姿可玩）', route: '/badminton', available: true },
+  { id: 'rhythm-drum', emoji: '🪘', title: '節奏復能鼓', subtitle: '雙側節奏交替揮擊', level: 'Level 1–3', levelBadge: 'bg-violet-100 text-violet-800', description: '霓虹音符沿光軌落向左右鼓面，跟著節拍左右手輪流揮擊，訓練雙側交替、節奏感與動作計時（坐姿可玩）', route: '/rhythm-drum', available: true },
 ]
 
 const BANNERS = [

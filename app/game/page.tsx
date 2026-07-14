@@ -87,10 +87,10 @@ export default function GamePage() {
   const lastResult        = currentRound.result
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 select-none">
+    <div className="min-h-screen flex flex-col game-screen-bg select-none">
 
       {/* ── Top HUD ─────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-4 py-3 bg-white border-b-2 border-gray-200 shadow-sm flex-shrink-0">
+      <header className="sticky top-2 z-40 mx-auto mt-2 flex w-[calc(100%-1rem)] max-w-3xl flex-shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 hud-glass sm:flex-nowrap">
         <TimerDisplay seconds={state.elapsedSeconds} />
 
         <RoundProgress
@@ -99,7 +99,7 @@ export default function GamePage() {
           rounds={state.session.rounds}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="order-2 flex items-center gap-2 sm:order-none">
           <ScoreHUD successCount={successCount} totalCompleted={completedRounds.length} />
 
           {/* AR 模式切換 */}
@@ -107,11 +107,11 @@ export default function GamePage() {
             onClick={() => setArMode((v) => !v)}
             title={arMode ? '切換為手動模式' : '切換為 AR 偵測模式'}
             className={`
-              flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold
-              border-2 transition-all duration-150 no-select
+              flex min-h-10 items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold
+              border transition-all duration-150 no-select shadow-sm
               ${arMode
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-500 border-gray-300 hover:border-blue-400'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-blue-200'
+                : 'bg-white/75 text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-700'
               }
             `}
           >
@@ -121,27 +121,27 @@ export default function GamePage() {
       </header>
 
       {/* ── 模式標籤 ────────────────────────────────────────────── */}
-      <div className="px-4 pt-3 pb-1 flex flex-wrap justify-center gap-2">
-        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-full px-4 py-1 text-sm font-semibold">
+      <div className="relative z-10 px-4 pt-4 pb-1 flex flex-wrap justify-center gap-2">
+        <span className="inline-flex min-h-9 items-center gap-1.5 bg-white/75 text-blue-800 border border-blue-200/80 rounded-full px-4 py-1 text-sm font-semibold shadow-sm backdrop-blur">
           訓練模式：{MODE_LABELS[state.session.mode]}
         </span>
 
         {arMode && isLandmarkerLoading && (
-          <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-3 py-1 text-sm font-semibold">
+          <span className="inline-flex min-h-9 items-center gap-1.5 bg-amber-50/90 text-amber-700 border border-amber-200 rounded-full px-3 py-1 text-sm font-semibold shadow-sm backdrop-blur">
             <span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block" />
             AI 模型載入中...
           </span>
         )}
 
         {arMode && landmarkerError && (
-          <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 rounded-full px-3 py-1 text-sm font-semibold">
+          <span className="inline-flex min-h-9 items-center gap-1.5 bg-red-50/90 text-red-700 border border-red-200 rounded-full px-3 py-1 text-sm font-semibold shadow-sm backdrop-blur">
             ⚠️ AI 載入失敗，已切換手動模式
           </span>
         )}
       </div>
 
       {/* ── 主要遊戲區 ──────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col items-center justify-between px-4 py-3 gap-3 max-w-2xl mx-auto w-full">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-4 gap-4 max-w-3xl mx-auto w-full">
 
         {/* 任務提示 */}
         <TaskPrompt
@@ -168,10 +168,10 @@ export default function GamePage() {
         </div>
 
         {/* 操作按鈕 */}
-        <div className="w-full pb-1">
+        <div className="w-full pb-2">
           {isARActive ? (
             <>
-              <p className="text-center text-xs text-gray-400 mb-2 font-medium">
+              <p className="text-center text-xs text-slate-500 mb-2 font-semibold">
                 手部停留在目標區 1.5 秒即自動成功 ｜ 或手動覆蓋：
               </p>
               <ActionButtons
@@ -183,7 +183,7 @@ export default function GamePage() {
             </>
           ) : (
             <>
-              <p className="text-center text-sm text-gray-400 mb-3 font-medium">
+              <p className="text-center text-sm text-slate-500 mb-3 font-semibold">
                 個案完成後，請按下方按鈕記錄結果
               </p>
               <ActionButtons
@@ -203,10 +203,10 @@ export default function GamePage() {
             fixed inset-0 z-50
             flex flex-col items-center justify-center
             pointer-events-none animate-feedback-in
-            ${lastResult === 'success' ? 'bg-green-400/75' : 'bg-red-400/75'}
+            ${lastResult === 'success' ? 'bg-green-400/80' : 'bg-red-400/80'}
           `}
         >
-          <div className="text-white text-9xl leading-none drop-shadow-lg">
+          <div className="text-white text-9xl leading-none drop-shadow-lg juice-pop-in">
             {lastResult === 'success' ? '✓' : '✗'}
           </div>
           <p className="text-white text-4xl font-bold mt-4 drop-shadow">
