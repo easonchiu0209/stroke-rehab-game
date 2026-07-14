@@ -143,7 +143,7 @@ function PlayingView({ cfg, difficulty, landmarker, isLandmarkerLoading, landmar
   const cssRadiusPx = cfg.hitRadiusPx * 1.1
 
   return (
-    <div className="flex flex-col w-full h-screen overflow-hidden select-none" style={{ background: '#06243f' }}>
+    <div className="flex flex-col w-full h-screen overflow-hidden select-none game-play-screen game-theme-aqua" style={{ background: '#06243f' }}>
       <div className="flex items-center justify-between px-5 py-2.5 bg-black/50 text-white shrink-0">
         <div><p className="text-xs opacity-60">分數</p><p className="text-4xl font-black text-cyan-300 leading-none">{hitCount * 10}</p></div>
         <div className="text-center">
@@ -208,7 +208,7 @@ function ConfigView({ onStart, onBack }: { onStart: (d: Difficulty) => void; onB
     { key: 'hard', emoji: '🟣', desc: '小魚・快・全範圍下方' },
   ]
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-cyan-50 to-blue-100">
+    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-cyan-50 to-blue-100 game-menu-screen game-theme-aqua">
       <div className="text-center"><p className="text-5xl mb-3">🎣</p><h1 className="text-3xl font-extrabold text-blue-900">復能釣魚王</h1><p className="text-gray-600 mt-1.5">魚兒在下方出現，伸手向下／向前把牠撈起來</p></div>
       <div className="w-full max-w-xl bg-white rounded-2xl border border-blue-100 p-4 shadow-sm">
         <p className="text-sm font-semibold text-gray-500 mb-3">訓練目標</p>
@@ -244,7 +244,7 @@ function ResultsView({ results, onReplay, onHome }: { results: GameResults; onRe
   const avgReaction = success.length > 0 ? Math.round(success.reduce((s, r) => s + r.reactionMs, 0) / success.length) : 0
   const rating = accuracy >= 85 ? { e: '🏆', t: '釣魚王！' } : accuracy >= 70 ? { e: '🌟', t: '非常好！' } : accuracy >= 50 ? { e: '👍', t: '做得好！' } : { e: '💪', t: '繼續加油！' }
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-8 gap-5 bg-gradient-to-b from-cyan-50 to-blue-100">
+    <main className="min-h-screen flex flex-col items-center px-5 py-8 gap-5 bg-gradient-to-b from-cyan-50 to-blue-100 game-menu-screen game-theme-aqua">
       <div className="text-center"><p className="text-5xl mb-2">{rating.e}</p><h1 className="text-3xl font-extrabold text-gray-900">{rating.t}</h1><p className="text-gray-500 mt-1">復能釣魚王 · {cfg.label} {cfg.sublabel}</p></div>
       <div className="bg-blue-700 rounded-2xl px-16 py-4 text-center shadow-lg"><p className="text-sm text-blue-200">總分</p><p className="text-6xl font-black text-cyan-300 leading-none">{hits * 10}</p><p className="text-sm text-blue-200">分</p></div>
       <div className="grid grid-cols-2 gap-3 w-full max-w-xl">

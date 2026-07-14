@@ -52,7 +52,7 @@ export default function ResultsPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-5 py-10 gap-6 bg-gradient-to-b from-green-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center justify-center px-5 py-10 gap-6 bg-gradient-to-b from-green-50 to-gray-50 game-menu-screen game-theme-meadow">
 
       {/* Summary header */}
       <SessionSummary accuracy={stats.accuracy} modeName={modeName} />

@@ -87,7 +87,7 @@ export default function GamePage() {
   const lastResult        = currentRound.result
 
   return (
-    <div className="min-h-screen flex flex-col game-screen-bg select-none">
+    <div className="min-h-screen flex flex-col game-screen-bg select-none game-theme-focus">
 
       {/* ── Top HUD ─────────────────────────────────────────────── */}
       <header className="sticky top-2 z-40 mx-auto mt-2 flex w-[calc(100%-1rem)] max-w-3xl flex-shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 hud-glass sm:flex-nowrap">

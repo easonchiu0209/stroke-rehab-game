@@ -112,7 +112,7 @@ function FishingView({ unlocked, landmarker, isLoading, lmError, onEnd }: {
   const loading = !isReady || isLoading
 
   return (
-    <div className="flex flex-col w-full h-screen overflow-hidden select-none" style={{ background: '#06243f' }}>
+    <div className="flex flex-col w-full h-screen overflow-hidden select-none game-play-screen game-theme-aqua" style={{ background: '#06243f' }}>
       <div className="flex items-center justify-between px-5 py-2.5 bg-black/50 text-white shrink-0">
         <div><p className="text-xs opacity-60">釣到</p><p className="text-4xl font-black text-cyan-300 leading-none">🐟{caught}</p></div>
         <div className="text-center">
@@ -183,7 +183,7 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
   const scaleFor = (st: number) => st >= 2 ? 1.2 : st === 1 ? 0.95 : 0.72
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-3 py-4 gap-4" style={{ background }}>
+    <main className="min-h-screen flex flex-col items-center px-3 py-4 gap-4 game-menu-screen game-theme-aqua" style={{ background }}>
       <div className="w-full max-w-lg flex items-center justify-between">
         <button onClick={() => router.push('/')} className="text-blue-900/80 font-bold bg-white/70 rounded-full px-3 py-1 shadow-sm">← 首頁</button>
         <div className="flex items-center gap-2">
@@ -294,7 +294,7 @@ function TankHome({ state, onFish, onChanged }: { state: AquariumState; onFish: 
 
 function ResultView({ r, onBack, onHome }: { r: FishResult; onBack: () => void; onHome: () => void }) {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-200 to-blue-300 flex flex-col items-center justify-center px-5 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-200 to-blue-300 flex flex-col items-center justify-center px-5 gap-6 game-menu-screen game-theme-aqua">
       <div className="text-center"><p className="text-6xl mb-2">🎣</p><h1 className="text-3xl font-extrabold text-blue-900">收竿！</h1>{r.levelUp && <p className="text-amber-600 font-bold mt-2 text-lg">🎉 水族箱升級到 Lv.{r.state.level}！</p>}</div>
       <div className="rounded-3xl px-12 py-5 text-center shadow-xl" style={{ background: 'linear-gradient(#0288d1,#01579b)' }}>
         <p className="text-sky-100 text-base">這次釣到</p><p className="text-6xl font-black text-cyan-200 leading-none mt-1">🐟 {r.caughtCount}</p>
@@ -333,7 +333,7 @@ export default function AquariumPage() {
     setResult(res); setState(res.state); setPage('result')
   }, [])
 
-  if (status === 'loading' || page === 'loading' || !state) return <div className="min-h-screen flex items-center justify-center text-gray-400 text-xl animate-pulse">載入水族箱中…</div>
+  if (status === 'loading' || page === 'loading' || !state) return <div className="min-h-screen flex items-center justify-center text-slate-600 text-xl animate-pulse game-menu-screen game-theme-aqua">載入水族箱中…</div>
   if (page === 'fishing') return <FishingView unlocked={state.unlocked} landmarker={landmarker} isLoading={isLoading} lmError={lmError} onEnd={handleEnd} />
   if (page === 'result' && result) return <ResultView r={result} onBack={() => setPage('tank')} onHome={() => router.push('/')} />
   return <TankHome state={state} onFish={() => setPage('fishing')} onChanged={setState} />

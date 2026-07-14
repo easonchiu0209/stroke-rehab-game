@@ -99,10 +99,256 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.28);
   }
 
+  /* Shared game presentation layer. Each game keeps its own theme while the
+     lobby, HUD and result surfaces feel like one polished product. */
+  .game-theme-focus {
+    --game-a: #2563eb;
+    --game-b: #06b6d4;
+    --game-soft: #dbeafe;
+    --game-deep: #172554;
+  }
+
+  .game-theme-meadow {
+    --game-a: #16a34a;
+    --game-b: #84cc16;
+    --game-soft: #dcfce7;
+    --game-deep: #14532d;
+  }
+
+  .game-theme-orchard {
+    --game-a: #f97316;
+    --game-b: #facc15;
+    --game-soft: #ffedd5;
+    --game-deep: #7c2d12;
+  }
+
+  .game-theme-aqua {
+    --game-a: #0891b2;
+    --game-b: #38bdf8;
+    --game-soft: #cffafe;
+    --game-deep: #164e63;
+  }
+
+  .game-theme-kitchen {
+    --game-a: #ea580c;
+    --game-b: #f59e0b;
+    --game-soft: #ffedd5;
+    --game-deep: #7c2d12;
+  }
+
+  .game-theme-neon {
+    --game-a: #7c3aed;
+    --game-b: #22d3ee;
+    --game-soft: #ede9fe;
+    --game-deep: #2e1065;
+  }
+
+  .game-theme-space {
+    --game-a: #7c3aed;
+    --game-b: #22d3ee;
+    --game-soft: #1e1b4b;
+    --game-deep: #05010f;
+  }
+
+  .game-theme-summit {
+    --game-a: #0284c7;
+    --game-b: #14b8a6;
+    --game-soft: #e0f2fe;
+    --game-deep: #0c4a6e;
+  }
+
+  .game-theme-strength {
+    --game-a: #0d9488;
+    --game-b: #22c55e;
+    --game-soft: #ccfbf1;
+    --game-deep: #134e4a;
+  }
+
+  .game-menu-screen {
+    position: relative;
+    isolation: isolate;
+    overflow-x: hidden;
+    color: #0f172a;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.54) 38%, rgba(255, 255, 255, 0.78) 100%),
+      linear-gradient(135deg, var(--game-soft, #dbeafe), #f8fafc 48%, color-mix(in srgb, var(--game-b, #38bdf8) 24%, white));
+  }
+
+  .game-menu-screen::before {
+    content: "";
+    position: fixed;
+    z-index: -2;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, transparent 0 49%, rgba(255, 255, 255, 0.5) 49% 51%, transparent 51%) 0 0 / 88px 88px,
+      linear-gradient(0deg, transparent 0 49%, rgba(255, 255, 255, 0.44) 49% 51%, transparent 51%) 0 0 / 88px 88px;
+    mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.65) 44%, transparent 82%);
+  }
+
+  .game-menu-screen::after {
+    content: "";
+    position: fixed;
+    z-index: -1;
+    left: -8%;
+    right: -8%;
+    bottom: -18vh;
+    height: 46vh;
+    pointer-events: none;
+    border-radius: 50% 50% 0 0;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--game-b, #38bdf8) 20%, white), color-mix(in srgb, var(--game-a, #2563eb) 32%, white));
+    opacity: 0.72;
+  }
+
+  .game-menu-screen.game-theme-space {
+    color: #ffffff;
+    background:
+      linear-gradient(180deg, rgba(30, 27, 75, 0.2), rgba(5, 1, 15, 0.72)),
+      linear-gradient(155deg, #1e1b4b 0%, #0f172a 46%, #05010f 100%);
+  }
+
+  .game-menu-screen.game-theme-space::before {
+    background:
+      radial-gradient(circle, rgba(255, 255, 255, 0.75) 0 1px, transparent 1.5px) 0 0 / 54px 54px,
+      radial-gradient(circle, rgba(34, 211, 238, 0.55) 0 1px, transparent 1.5px) 24px 18px / 88px 88px;
+    mask-image: linear-gradient(180deg, #000, rgba(0, 0, 0, 0.76));
+  }
+
+  .game-menu-screen.game-theme-space::after {
+    border-top: 1px solid rgba(34, 211, 238, 0.24);
+    background: linear-gradient(180deg, rgba(124, 58, 237, 0.2), rgba(34, 211, 238, 0.06));
+    opacity: 0.8;
+  }
+
+  .game-menu-screen.game-theme-space h1 {
+    color: #ffffff;
+    text-shadow: 0 2px 18px rgba(34, 211, 238, 0.3);
+  }
+
+  .game-menu-screen > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .game-menu-screen h1 {
+    color: var(--game-deep, #172554);
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .game-menu-screen [class~="rounded-2xl"] {
+    box-shadow:
+      0 16px 36px rgba(15, 23, 42, 0.11),
+      inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  .game-menu-screen [class~="bg-white"] {
+    border-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(14px);
+  }
+
+  .game-menu-screen button {
+    min-height: 44px;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
+  }
+
+  .game-menu-screen button:hover {
+    transform: translateY(-2px);
+  }
+
+  .game-menu-screen button:active {
+    transform: scale(0.97);
+  }
+
+  .game-menu-screen button[class*="text-white"] {
+    box-shadow:
+      0 14px 28px color-mix(in srgb, var(--game-a, #2563eb) 28%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  }
+
+  .game-play-screen {
+    position: relative;
+    isolation: isolate;
+    background: var(--game-deep, #0f172a);
+  }
+
+  .game-hud {
+    position: relative;
+    z-index: 40;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.74)) !important;
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.25);
+    backdrop-filter: blur(18px);
+  }
+
+  .game-stage-shell {
+    position: relative;
+    margin: 0.4rem;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    border-radius: 18px;
+    box-shadow:
+      0 20px 42px rgba(2, 6, 23, 0.32),
+      inset 0 0 90px rgba(2, 6, 23, 0.16);
+  }
+
+  .game-bottom-bar {
+    position: relative;
+    z-index: 30;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.94)) !important;
+    box-shadow: 0 -10px 28px rgba(2, 6, 23, 0.18);
+    backdrop-filter: blur(16px);
+  }
+
+  .game-lobby-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.92);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .game-lobby-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 42px rgba(15, 23, 42, 0.14);
+  }
+
+  .game-lobby-banner {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -24px 40px rgba(15, 23, 42, 0.12);
+  }
+
+  .game-lobby-banner::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background:
+      linear-gradient(115deg, rgba(255, 255, 255, 0.28), transparent 38%),
+      repeating-linear-gradient(135deg, transparent 0 22px, rgba(255, 255, 255, 0.06) 22px 44px);
+  }
+
+  .game-lobby-cta {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8 58%, #1e40af);
+    box-shadow:
+      0 10px 20px rgba(37, 99, 235, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-target-pulse,
-    .juice-pop-in {
+    .juice-pop-in,
+    .game-menu-screen button,
+    .game-lobby-card {
       animation: none !important;
+      transition: none !important;
     }
   }
 }

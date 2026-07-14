@@ -259,7 +259,7 @@ export default function HomePage() {
         {/* ── 遊戲貼文（交錯獎品卡）── */}
         {avail.map((g, i) => (
           <div key={g.id}>
-            <article className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <article className="bg-white rounded-2xl shadow-sm overflow-hidden game-lobby-card">
               <div className="flex items-center gap-3 px-4 pt-3">
                 <div className="w-11 h-11 rounded-full flex items-center justify-center text-2xl shrink-0" style={{ background: BANNERS[i % BANNERS.length] }}>
                   <span style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))' }}>{g.emoji}</span>
@@ -269,12 +269,12 @@ export default function HomePage() {
                   <div className="flex items-center gap-2"><span className="text-xs text-slate-500">{g.subtitle}</span><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${g.levelBadge}`}>{g.level}</span></div>
                 </div>
               </div>
-              <div className="mx-4 mt-3 rounded-xl h-24 flex items-center justify-center" style={{ background: BANNERS[i % BANNERS.length] }}>
+              <div className="mx-4 mt-3 rounded-xl h-24 flex items-center justify-center game-lobby-banner" style={{ background: BANNERS[i % BANNERS.length] }}>
                 <span className="text-6xl" style={{ filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.35))' }}>{g.emoji}</span>
               </div>
               <p className="px-4 py-2.5 text-sm text-slate-600 leading-relaxed">{g.description}</p>
               <div className="px-4 pb-3">
-                <button onClick={() => router.push(g.route)} className="w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold active:scale-[0.98] transition-transform">▶ 開始訓練</button>
+                <button onClick={() => router.push(g.route)} className="w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold active:scale-[0.98] transition-transform game-lobby-cta">▶ 開始訓練</button>
               </div>
             </article>
 

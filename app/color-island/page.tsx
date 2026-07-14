@@ -108,7 +108,7 @@ function ConfigView({
 }) {
   const router = useRouter()
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-aqua">
       <div className="text-center">
         <div className="text-6xl mb-2">🎈</div>
         <h1 className="text-4xl font-extrabold text-sky-900">彩球復能島</h1>
@@ -327,7 +327,7 @@ function PlayingView({
   const accuracy = total > 0 ? Math.round((hitCount / total) * 100) : 0
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden bg-sky-900">
+    <div className="w-full h-screen flex flex-col overflow-hidden bg-sky-900 game-play-screen game-theme-aqua">
       {/* HUD */}
       <div className="flex justify-between items-center px-6 py-3 bg-black/60 text-white shrink-0 z-10">
         <div>
@@ -484,7 +484,7 @@ function ResultsView({
   }, [])
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-aqua">
       {/* Rating */}
       <div className="text-center">
         <div className="text-6xl">{rating.e}</div>

@@ -86,7 +86,7 @@ function ConfigView({ difficulty, setDifficulty, onStart, onBack }: {
   onBack: () => void
 }) {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-slate-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-slate-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-summit">
       <div className="text-center">
         <div className="text-6xl mb-2">🧗</div>
         <h1 className="text-4xl font-extrabold text-slate-900">爬牆挑戰</h1>
@@ -256,7 +256,7 @@ function PlayingView({ cfg, difficulty, phase, setPhase, onEnd }: {
   const bestPct = prevBest != null ? Math.min(1, prevBest / MAX_DEG) : null
 
   return (
-    <main className="min-h-screen flex flex-col bg-gradient-to-b from-sky-200 to-sky-50">
+    <main className="min-h-screen flex flex-col bg-gradient-to-b from-sky-200 to-sky-50 game-play-screen game-theme-summit">
       {/* HUD */}
       <div className="flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur">
         <div className="text-center">
@@ -397,7 +397,7 @@ function ResultsView({ difficulty, reps, maxDeg, prevBest, onReplay, onHome }: {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6 game-menu-screen game-theme-summit">
       <div className="text-center">
         <div className="text-6xl mb-2">{newRecord ? '🏆' : '⛰️'}</div>
         <h1 className="text-3xl font-extrabold text-slate-900">{newRecord ? '新紀錄！' : '完成訓練！'}</h1>

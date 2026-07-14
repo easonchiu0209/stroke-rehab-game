@@ -264,7 +264,7 @@ function PlayingView({
   const cssRadiusPx = cfg.hitRadiusPx * 1.1
 
   return (
-    <div className="flex flex-col w-full h-screen bg-gray-900 overflow-hidden select-none">
+    <div className="flex flex-col w-full h-screen bg-gray-900 overflow-hidden select-none game-play-screen game-theme-meadow">
 
       {/* ── HUD ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 py-2.5 bg-black/60 text-white shrink-0">
@@ -449,7 +449,7 @@ function ConfigView({
   ]
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-green-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-green-50 to-gray-50 game-menu-screen game-theme-meadow">
       <div className="text-center">
         <p className="text-5xl mb-3">🎯</p>
         <h1 className="text-3xl font-extrabold text-gray-900">復能打地鼠</h1>
@@ -574,7 +574,7 @@ function ResultsView({
   const maxCell = Math.max(1, ...grid.flat())
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-8 gap-5 bg-gradient-to-b from-green-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center px-5 py-8 gap-5 bg-gradient-to-b from-green-50 to-gray-50 game-menu-screen game-theme-meadow">
 
       {/* Header */}
       <div className="text-center">

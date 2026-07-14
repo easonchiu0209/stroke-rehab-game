@@ -114,7 +114,7 @@ function ConfigView({
 }) {
   const router = useRouter()
   return (
-    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-yellow-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-yellow-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-orchard">
       <div className="text-center">
         <div className="text-6xl mb-2">🍎</div>
         <h1 className="text-4xl font-extrabold text-orange-900">復能切切樂</h1>
@@ -388,7 +388,7 @@ function PlayingView({
   const accuracy = total > 0 ? Math.round((hitCount / total) * 100) : 0
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden bg-gray-900">
+    <div className="w-full h-screen flex flex-col overflow-hidden bg-gray-900 game-play-screen game-theme-orchard">
       {/* HUD */}
       <div className="flex justify-between items-center px-6 py-3 bg-black/60 text-white shrink-0 z-10">
         <div>
@@ -537,7 +537,7 @@ function ResultsView({
     :              { e: '💪', t: '繼續加油！', c: '#6A1B9A' }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-yellow-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-yellow-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-orchard">
       {/* Rating */}
       <div className="text-center">
         <div className="text-6xl">{rating.e}</div>

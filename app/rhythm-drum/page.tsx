@@ -354,7 +354,7 @@ function PlayingView({
   const activePads: PadId[] = cfg.pattern.includes('C') ? ['L', 'C', 'R'] : ['L', 'R']
 
   return (
-    <div className="flex flex-col w-full h-screen bg-slate-950 overflow-hidden select-none">
+    <div className="flex flex-col w-full h-screen bg-slate-950 overflow-hidden select-none game-play-screen game-theme-neon">
 
       {/* ── HUD ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 py-2.5 bg-black/70 text-white shrink-0">
@@ -594,7 +594,7 @@ function ConfigView({
   ]
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-violet-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-violet-50 to-gray-50 game-menu-screen game-theme-neon">
       <div className="text-center">
         <p className="text-5xl mb-3">🪘</p>
         <h1 className="text-3xl font-extrabold text-gray-900">節奏復能鼓</h1>
@@ -705,7 +705,7 @@ function ResultsView({
   const { emoji, text } = getRating()
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-8 gap-5 bg-gradient-to-b from-violet-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center px-5 py-8 gap-5 bg-gradient-to-b from-violet-50 to-gray-50 game-menu-screen game-theme-neon">
 
       {/* Header */}
       <div className="text-center">

@@ -216,7 +216,7 @@ function TendingView({
   const ripeLeft = ripePoolRef.current.length
 
   return (
-    <div className="flex flex-col w-full h-screen overflow-hidden select-none" style={{ background: '#1b3a1f' }}>
+    <div className="flex flex-col w-full h-screen overflow-hidden select-none game-play-screen game-theme-meadow" style={{ background: '#1b3a1f' }}>
       {/* ── 木牌風 HUD ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 shrink-0 z-20"
         style={{ background: 'linear-gradient(#8d5a2b,#6b3f1d)', boxShadow: '0 4px 10px rgba(0,0,0,0.4)' }}>
@@ -383,7 +383,7 @@ function ResultView({ result, onBackToFarm, onHome }: {
   result: TendResult; onBackToFarm: () => void; onHome: () => void
 }) {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-200 via-lime-100 to-amber-100 flex flex-col items-center justify-center px-5 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-200 via-lime-100 to-amber-100 flex flex-col items-center justify-center px-5 gap-6 game-menu-screen game-theme-meadow">
       <div className="text-center">
         <p className="text-6xl mb-2">🧺</p>
         <h1 className="text-3xl font-extrabold text-green-900">採收完成！</h1>
@@ -456,7 +456,7 @@ export default function FarmPage() {
   }, [])
 
   if (status === 'loading' || page === 'loading' || !state) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-400 text-xl animate-pulse">載入農場中…</div>
+    return <div className="min-h-screen flex items-center justify-center text-slate-600 text-xl animate-pulse game-menu-screen game-theme-meadow">載入農場中…</div>
   }
 
   if (page === 'tending') {

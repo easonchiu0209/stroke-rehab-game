@@ -50,7 +50,7 @@ function ConfigView({ difficulty, setDifficulty, onStart }: {
   const router = useRouter()
   const [ack, setAck] = useState(false)
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-100 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-100 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-aqua">
       <div className="text-center">
         <div className="text-6xl mb-2">⚖️</div>
         <h1 className="text-4xl font-extrabold text-gray-900">重心平衡</h1>
@@ -223,7 +223,7 @@ function PlayingView({ difficulty, onEnd }: {
   const accuracy = total > 0 ? Math.round((hitCount / total) * 100) : 0
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: '#082f49' }}>
+    <div className="w-full h-screen flex flex-col overflow-hidden game-play-screen game-theme-aqua" style={{ background: '#082f49' }}>
       <div className="flex justify-between items-center px-6 py-3 bg-cyan-700 text-white shrink-0 z-10">
         <div><div className="text-xs opacity-80">分數</div><div className="text-4xl font-black leading-none">{score}</div></div>
         <div className="text-center">
@@ -273,7 +273,7 @@ function ResultsView({ difficulty, hits, misses, badHits, records, onReplay, onH
   const rating = hits >= 25 ? { e: '🏆', t: '平衡大師！' } : hits >= 15 ? { e: '🌟', t: '非常好！' } : hits >= 8 ? { e: '👍', t: '做得好！' } : { e: '💪', t: '繼續加油！' }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-100 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-cyan-100 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-aqua">
       <div className="text-center">
         <div className="text-6xl">{rating.e}</div>
         <h1 className="text-4xl font-extrabold mt-2 text-gray-900">{rating.t}</h1>

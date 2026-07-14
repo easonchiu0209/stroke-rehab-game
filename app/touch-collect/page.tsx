@@ -96,10 +96,10 @@ function PlayingView({
   const isLoading = !isReady || isLandmarkerLoading
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-900 select-none">
+    <div className="min-h-screen flex flex-col bg-gray-900 select-none game-play-screen game-theme-focus">
 
       {/* ── HUD ────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-4 py-2.5 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+      <header className="flex items-center justify-between gap-3 px-4 py-2.5 bg-gray-800 border-b border-gray-700 flex-shrink-0 game-hud">
         {/* Timer */}
         <div className="text-white font-mono text-xl font-bold min-w-[72px]">
           ⏱ {timeStr}
@@ -130,7 +130,7 @@ function PlayingView({
       </header>
 
       {/* ── Camera + Canvas ─────────────────────────────────────── */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden game-stage-shell">
         <SceneBack theme="calm" />
         <video
           ref={videoRef}
@@ -236,7 +236,7 @@ function PlayingView({
       </div>
 
       {/* ── Bottom bar ──────────────────────────────────────────── */}
-      <div className="bg-gray-800 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
+      <div className="bg-gray-800 px-4 py-2.5 flex items-center justify-between gap-3 flex-shrink-0 game-bottom-bar">
         <button
           onClick={onBack}
           className="text-gray-400 text-sm font-medium hover:text-white transition-colors"
@@ -390,7 +390,7 @@ export default function TouchCollectPage() {
   // ═══════════════════════════════════════════════════════════════════
   if (phase === 'config') {
     return (
-      <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-blue-50 to-gray-50">
+      <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-blue-50 to-gray-50 game-menu-screen game-theme-focus">
 
         {/* Back nav */}
         <div className="w-full max-w-xl">
@@ -528,7 +528,7 @@ export default function TouchCollectPage() {
   const rSs = String(totalSec % 60).padStart(2, '0')
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-6 bg-gradient-to-b from-blue-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-6 bg-gradient-to-b from-blue-50 to-gray-50 game-menu-screen game-theme-focus">
 
       {/* Result header */}
       <div className="text-center">

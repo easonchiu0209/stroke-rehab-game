@@ -26,7 +26,7 @@ export default function GameSetupPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-blue-50 to-gray-50">
+    <main className="min-h-screen flex flex-col items-center px-5 py-10 gap-7 bg-gradient-to-b from-blue-50 to-gray-50 game-menu-screen game-theme-focus">
 
       {/* 返回首頁 */}
       <div className="w-full max-w-xl">

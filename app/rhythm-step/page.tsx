@@ -63,7 +63,7 @@ function ConfigView({ difficulty, setDifficulty, onStart, onBack }: {
 }) {
   const [safety, setSafety] = useState(false)
   return (
-    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-slate-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-slate-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-orchard">
       <div className="text-center">
         <div className="text-6xl mb-2">🥁</div>
         <h1 className="text-4xl font-extrabold text-slate-900">節奏踏步</h1>
@@ -233,7 +233,7 @@ function PlayingView({ cfg, phase, setPhase, onEnd }: {
   const rhythmPct = stepCounts.total ? Math.round((stepCounts.onBeat / stepCounts.total) * 100) : 0
 
   return (
-    <main className="min-h-screen flex flex-col bg-gradient-to-b from-orange-100 to-amber-50">
+    <main className="min-h-screen flex flex-col bg-gradient-to-b from-orange-100 to-amber-50 game-play-screen game-theme-orchard">
       {/* HUD */}
       <div className="flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur">
         <div className="text-center"><p className="text-xs text-slate-500 font-semibold">踏步</p><p className="text-3xl font-black text-orange-600">{stepCounts.total}</p></div>
@@ -312,7 +312,7 @@ function ResultsView({ difficulty, steps, onBeat, left, right, onReplay, onHome 
   }, [difficulty, steps, onBeat, left, right])
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-orange-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6 game-menu-screen game-theme-orchard">
       <div className="text-center">
         <div className="text-6xl mb-2">🥁</div>
         <h1 className="text-3xl font-extrabold text-slate-900">完成訓練！</h1>

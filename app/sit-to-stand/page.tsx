@@ -40,7 +40,7 @@ export default function SitToStandPage() {
 function ConfigView({ onStart, onBack }: { onStart: () => void; onBack: () => void }) {
   const [safety, setSafety] = useState(false)
   return (
-    <main className="min-h-screen bg-gradient-to-b from-teal-50 to-slate-50 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-teal-50 to-slate-50 flex flex-col items-center px-5 py-10 gap-6 game-menu-screen game-theme-strength">
       <div className="text-center">
         <div className="text-6xl mb-2">🪑</div>
         <h1 className="text-4xl font-extrabold text-slate-900">坐到站</h1>
@@ -163,7 +163,7 @@ function PlayingView({ phase, setPhase, onEnd }: {
   }, [phase, timeLeft, calibrated, onEnd, stands])
 
   return (
-    <main className="min-h-screen flex flex-col bg-gradient-to-b from-teal-100 to-teal-50">
+    <main className="min-h-screen flex flex-col bg-gradient-to-b from-teal-100 to-teal-50 game-play-screen game-theme-strength">
       <div className="flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur">
         <div className="text-center"><p className="text-xs text-slate-500 font-semibold">完成次數</p><p className="text-3xl font-black text-teal-700">{stands}</p></div>
         <div className="text-center"><p className="text-xs text-slate-500 font-semibold">狀態</p><p className="text-3xl">{isUp ? '🧍' : '🪑'}</p></div>
@@ -228,7 +228,7 @@ function ResultsView({ stands, avgMs, onReplay, onHome }: {
   }, [stands, avgMs])
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-teal-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6">
+    <main className="min-h-screen bg-gradient-to-b from-teal-50 to-slate-50 flex flex-col items-center justify-center px-6 gap-6 game-menu-screen game-theme-strength">
       <div className="text-center">
         <div className="text-6xl mb-2">🪑</div>
         <h1 className="text-3xl font-extrabold text-slate-900">完成挑戰！</h1>
