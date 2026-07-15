@@ -65,6 +65,73 @@ function shadeColor(hex: string, percent: number) {
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
 
+/** 漸層快取：依（用途|半徑|色調）鍵重用 CanvasGradient，避免每幀每目標重建（低階平板效能）。
+ *  漸層都以 (0,0) 為圓心建立、配合 ctx.translate 使用，故與目標位置無關、可安全共用。
+ *  半徑取整後種類有限（各難度 hitRadiusPx × 顯示縮放），Map 不會無界成長。 */
+type GradCache = Map<string, CanvasGradient>
+
+function getBodyGradient(ctx: CanvasRenderingContext2D, cache: GradCache, r: number, tone: string) {
+  const key = `body|${Math.round(r)}|${tone}`
+  let g = cache.get(key)
+  if (!g) {
+    g = ctx.createRadialGradient(-r * 0.3, -r * 0.34, r * 0.05, 0, 0, r * 1.02)
+    g.addColorStop(0, 'rgba(255,255,255,0.9)')
+    g.addColorStop(0.42, tone)
+    g.addColorStop(1, shadeColor(tone, -0.35))
+    cache.set(key, g)
+  }
+  return g
+}
+
+function getShadowGradient(ctx: CanvasRenderingContext2D, cache: GradCache, r: number) {
+  const key = `shadow|${Math.round(r)}`
+  let g = cache.get(key)
+  if (!g) {
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.85)
+    g.addColorStop(0, 'rgba(0,0,0,0.30)')
+    g.addColorStop(1, 'rgba(0,0,0,0)')
+    cache.set(key, g)
+  }
+  return g
+}
+
+function getHalfGradient(ctx: CanvasRenderingContext2D, cache: GradCache, r: number, tone: string) {
+  const key = `half|${Math.round(r)}|${tone}`
+  let g = cache.get(key)
+  if (!g) {
+    g = ctx.createRadialGradient(-r * 0.2, -r * 0.24, r * 0.05, 0, 0, r * 0.8)
+    g.addColorStop(0, 'rgba(255,255,255,0.85)')
+    g.addColorStop(0.45, tone)
+    g.addColorStop(1, shadeColor(tone, -0.3))
+    cache.set(key, g)
+  }
+  return g
+}
+
+/** 手部游標 sprite：光暈＋半透明底＋金色描邊預先畫進離屏 canvas，
+ *  之後每幀只 drawImage 一次，避免每幀 shadowBlur 的高成本（低階平板效能）。 */
+function makeCursorSprite(scale: number): { canvas: HTMLCanvasElement; half: number } | null {
+  const r    = 18 * scale
+  const blur = 14 * scale
+  const half = Math.ceil(r + blur + 3 * scale)
+  const c = document.createElement('canvas')
+  c.width = c.height = half * 2
+  const cctx = c.getContext('2d')
+  if (!cctx) return null
+  cctx.translate(half, half)
+  cctx.shadowColor = 'rgba(255,214,0,0.55)'
+  cctx.shadowBlur  = blur
+  cctx.beginPath()
+  cctx.arc(0, 0, r, 0, Math.PI * 2)
+  cctx.fillStyle = 'rgba(255,214,0,0.22)'
+  cctx.fill()
+  cctx.shadowBlur = 0
+  cctx.strokeStyle = '#FFD600'
+  cctx.lineWidth = 3 * scale
+  cctx.stroke()
+  return { canvas: c, half }
+}
+
 /** 出場彈入曲線（聖經 §5.1 juicePopIn，0.32s）：0%→0, 60%→1.15, 80%→0.95, 100%→1 */
 function popInScale(ageMs: number) {
   const t = Math.min(1, ageMs / 320)
@@ -81,6 +148,7 @@ function drawJuicyTarget(
   dispScale: number,   // 640px 參考寬度換算的顯示縮放
   animScale: number,   // 出場彈入 × 呼吸脈動
   ringAlpha: number,
+  gradCache: GradCache,
 ) {
   const isBomb = target.type === 'bomb'
   const tone   = isBomb ? '#4b4b4b' : juiceToneForId(target.id)
@@ -93,13 +161,10 @@ function drawJuicyTarget(
 
   // 落地陰影（聖經 §2.1：只往下的柔和陰影）
   ctx.save()
-  const shadowGrad = ctx.createRadialGradient(0, r * 0.24, 0, 0, r * 0.24, r * 0.85)
-  shadowGrad.addColorStop(0, 'rgba(0,0,0,0.30)')
-  shadowGrad.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.translate(0, r * 0.24)
   ctx.scale(1, 0.5)
   ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2)
-  ctx.fillStyle = shadowGrad
+  ctx.fillStyle = getShadowGradient(ctx, gradCache, r)
   ctx.fill()
   ctx.restore()
 
@@ -111,13 +176,9 @@ function drawJuicyTarget(
   ctx.stroke()
 
   // 圓潤高光底盤（聖經 §2.2：左上白高光的塑膠/軟糖質感）
-  const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.34, r * 0.05, 0, 0, r * 1.02)
-  grad.addColorStop(0, 'rgba(255,255,255,0.9)')
-  grad.addColorStop(0.42, tone)
-  grad.addColorStop(1, shadeColor(tone, -0.35))
   ctx.beginPath()
   ctx.arc(0, 0, r * 0.86, 0, Math.PI * 2)
-  ctx.fillStyle = grad
+  ctx.fillStyle = getBodyGradient(ctx, gradCache, r, tone)
   ctx.fill()
 
   // 白邊描邊（聖經 §3：雜亂鏡頭背景上的辨識度）
@@ -152,6 +213,7 @@ function drawHitFlash(
   dispScale: number,
   hf: HitFlash,
   now: number,
+  gradCache: GradCache,
 ) {
   const age = (now - hf.hitAt) / 260
   if (age >= 1) return
@@ -186,11 +248,7 @@ function drawHitFlash(
       ctx.translate(side * r * 0.16, 0)
       ctx.beginPath()
       ctx.arc(0, 0, r * 0.78, 0, Math.PI * 2)
-      const grad = ctx.createRadialGradient(-r * 0.2, -r * 0.24, r * 0.05, 0, 0, r * 0.8)
-      grad.addColorStop(0, 'rgba(255,255,255,0.85)')
-      grad.addColorStop(0.45, hf.tone)
-      grad.addColorStop(1, shadeColor(hf.tone, -0.3))
-      ctx.fillStyle = grad
+      ctx.fillStyle = getHalfGradient(ctx, gradCache, r, hf.tone)
       ctx.fill()
       ctx.restore()
     }
@@ -247,6 +305,16 @@ export function useSlashDetector({
     recordTrajectory(trajRef.current)
     const cal = getCalib()
 
+    // 適老紅線（聖經 §5.6）：reduce 時關閉呼吸脈動（保留出現的 pop 與命中殘影）
+    const reduceMotion = typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    // 每場一份的渲染快取（效能：漸層不每幀重建、游標 sprite 只畫一次）
+    const gradCache: GradCache = new Map()
+    let cursorSprite: { canvas: HTMLCanvasElement; half: number } | null = null
+    let cursorSpriteScale = -1
+
     function loop() {
       const video  = videoRef.current
       const canvas = canvasRef.current
@@ -298,13 +366,14 @@ export function useSlashDetector({
           const cy = pos.ny * canvas.height
 
           // 出場彈入（聖經 §5.1 juicePopIn）＋呼吸脈動（聖經 §2.3/§5.5，全目標同步時鐘）
+          // prefers-reduced-motion：關呼吸脈動（聖經 §5.6），保留基本 pop 與固定光暈
           const spawnAge = now - target.spawnTime
           const popScale = spawnAge >= 320 ? 1 : popInScale(spawnAge)
-          const breathe  = 0.5 + 0.5 * Math.sin((now / 1200) * Math.PI * 2)
-          const animScale = popScale * (1 + breathe * 0.04)
+          const breathe  = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin((now / 1200) * Math.PI * 2)
+          const animScale = reduceMotion ? popScale : popScale * (1 + breathe * 0.04)
           const ringAlpha = 0.5 - breathe * 0.35
 
-          drawJuicyTarget(ctx, cx, cy, target, scale, animScale, ringAlpha)
+          drawJuicyTarget(ctx, cx, cy, target, scale, animScale, ringAlpha, gradCache)
         }
       }
 
@@ -314,7 +383,7 @@ export function useSlashDetector({
         for (const hf of hitFlashRef.current) {
           const cx = (1 - hf.nx) * canvas.width
           const cy = hf.ny * canvas.height
-          drawHitFlash(ctx, cx, cy, scale, hf, now)
+          drawHitFlash(ctx, cx, cy, scale, hf, now, gradCache)
         }
       }
 
@@ -341,21 +410,17 @@ export function useSlashDetector({
 
       // Draw wrist cursor (raw coords, CSS handles mirror)
       // 聖經 §3：手部游標統一規範＝ 3px solid #FFD600 ＋ 半透明底 ＋ 外光暈
+      // 效能：sprite 只在 scale 變動時重畫一次，每幀僅 drawImage（避免每幀 shadowBlur）
       if (ctx) {
-        const cx = wx * canvas.width
-        const cy = wy * canvas.height
-        ctx.save()
-        ctx.shadowColor = 'rgba(255,214,0,0.55)'
-        ctx.shadowBlur  = 14 * scale
-        ctx.beginPath()
-        ctx.arc(cx, cy, 18 * scale, 0, Math.PI * 2)
-        ctx.fillStyle   = 'rgba(255,214,0,0.22)'
-        ctx.fill()
-        ctx.shadowBlur  = 0
-        ctx.strokeStyle = '#FFD600'
-        ctx.lineWidth   = 3 * scale
-        ctx.stroke()
-        ctx.restore()
+        if (!cursorSprite || cursorSpriteScale !== scale) {
+          cursorSprite = makeCursorSprite(scale)
+          cursorSpriteScale = scale
+        }
+        if (cursorSprite) {
+          const cx = wx * canvas.width
+          const cy = wy * canvas.height
+          ctx.drawImage(cursorSprite.canvas, cx - cursorSprite.half, cy - cursorSprite.half)
+        }
       }
 
       // ── Hit detection（判定邏輯完全不變，僅額外記錄一筆純視覺用的命中殘影）────

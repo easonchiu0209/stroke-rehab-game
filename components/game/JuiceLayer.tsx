@@ -70,6 +70,19 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
   const rafRef     = useRef<number | null>(null)
   const runningRef = useRef(false)
 
+  // 適老紅線（聖經 §5.6）：prefers-reduced-motion 時粒子減半、關 shake 與 hit-stop
+  const reducedMotionRef = useRef(false)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      reducedMotionRef.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    }
+  }, [])
+
+  // hit-stop 狀態：timer 存 ref 供 unmount 清理；in-flight 旗標防重入
+  // （重入會把「已暫停」的動畫重複 pause，恢復時機錯亂）
+  const hitStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hitStopAnimsRef = useRef<Animation[]>([])
+
   function ensureLoop() {
     if (runningRef.current) return
     runningRef.current = true
@@ -162,7 +175,8 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
       const H = canvas.parentElement?.clientHeight ?? 480
       const colors = opts?.colors ?? DEFAULT_COLORS
       const emojis = opts?.emojis ?? ['✨']
-      const count = opts?.count ?? 14
+      let count = opts?.count ?? 14
+      if (reducedMotionRef.current) count = Math.max(1, Math.floor(count / 2))   // 聖經 §5.6：粒子減半
       const now = performance.now()
       for (let i = 0; i < count; i++) {
         const ang = (Math.PI * 2 * i) / count + Math.random() * 0.6
@@ -193,6 +207,7 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
       ensureLoop()
     },
     shake(intensity = 0.6) {
+      if (reducedMotionRef.current) return   // 聖經 §5.6：reduce 時關閉 shake
       const el = canvasRef.current?.parentElement
       if (!el || !el.animate) return
       const a = Math.min(6, 8 * intensity)  // 幅度上限 6px（適老）
@@ -224,8 +239,9 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
       const H = canvas.parentElement?.clientHeight ?? 480
       const color = opts?.color ?? '#FFD600'   // 陽光金（聖經 §1.1）— 亮底場景不用霓虹
       const now = performance.now()
-      for (let i = 0; i < 20; i++) {
-        const ang = (Math.PI * 2 * i) / 20 + Math.random() * 0.4
+      const count = reducedMotionRef.current ? 10 : 20   // 聖經 §5.6：粒子減半
+      for (let i = 0; i < count; i++) {
+        const ang = (Math.PI * 2 * i) / count + Math.random() * 0.4
         const spd = 4 + Math.random() * 6
         particles.current.push({
           x: nx * W, y: ny * H,
@@ -243,18 +259,32 @@ const JuiceLayer = forwardRef<JuiceHandle, { className?: string }>(function Juic
       ensureLoop()
     },
     hitStop(ms = 100) {
+      if (reducedMotionRef.current) return          // 聖經 §5.6：reduce 時關閉頓幀
+      if (hitStopTimerRef.current !== null) return  // in-flight 防重入：頓幀期間忽略新請求
       const el = canvasRef.current?.parentElement
       if (!el) return
       let anims: Animation[] = []
       try { anims = el.getAnimations?.({ subtree: true }) ?? [] } catch { anims = [] }
       anims.forEach(a => { try { a.pause() } catch { /* noop */ } })
-      setTimeout(() => {
-        anims.forEach(a => { try { a.play() } catch { /* noop */ } })
+      hitStopAnimsRef.current = anims
+      hitStopTimerRef.current = setTimeout(() => {
+        hitStopTimerRef.current = null
+        hitStopAnimsRef.current.forEach(a => { try { a.play() } catch { /* noop */ } })
+        hitStopAnimsRef.current = []
       }, ms)
     },
   }), [])
 
-  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }, [])
+  // unmount：停 raf、清 hit-stop timer 並恢復被暫停的動畫（避免計時器孤兒與永久暫停）
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    if (hitStopTimerRef.current !== null) {
+      clearTimeout(hitStopTimerRef.current)
+      hitStopTimerRef.current = null
+      hitStopAnimsRef.current.forEach(a => { try { a.play() } catch { /* noop */ } })
+      hitStopAnimsRef.current = []
+    }
+  }, [])
 
   return (
     <canvas

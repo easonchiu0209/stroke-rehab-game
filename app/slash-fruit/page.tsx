@@ -234,6 +234,14 @@ function PlayingView({
   const noHandTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const spawnRef     = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // 個人最佳分（僅本機演出用途，正式數據走 saveGameSession/Supabase）
+  // hit-stop 依聖經 §5.4 只允許「破紀錄或最終一擊」——用破個人紀錄的那一擊觸發，一場最多一次。
+  const bestScoreRef   = useRef(0)
+  const recordBrokeRef = useRef(false)
+  useEffect(() => {
+    try { bestScoreRef.current = Number(localStorage.getItem('slash-fruit-best-score') ?? 0) || 0 } catch { /* noop */ }
+  }, [])
+
   useEffect(() => { phaseRef.current = phase }, [phase])
   useEffect(() => { targetsRef.current = targets }, [targets])
 
@@ -298,6 +306,10 @@ function PlayingView({
     if (phase !== 'ended' || savedRef.current) return
     savedRef.current = true
     if (spawnRef.current) clearInterval(spawnRef.current)
+    // 更新本機個人最佳分（供下一場的破紀錄 hit-stop 判斷）
+    if (scoreRef.current > bestScoreRef.current) {
+      try { localStorage.setItem('slash-fruit-best-score', String(scoreRef.current)) } catch { /* noop */ }
+    }
     speak(hitCountRef.current >= 8 ? '太棒了，表現很好！' : '辛苦了，下次再加油！')
     setTimeout(() => onEnd(hitCountRef.current, missCountRef.current, bombHitsRef.current, recordsRef.current), 600)
   }, [phase, onEnd])
@@ -339,10 +351,16 @@ function PlayingView({
       juiceRef.current?.floatText(nx, ny - 0.06, '+10')
       juiceRef.current?.shake(0.4)
 
-      // Combo 里程碑（每 5 連擊）：金色大演出＋短暫頓幀（聖經 §5.4，克制使用，只在里程碑觸發）
+      // Combo 里程碑（每 5 連擊）：只有金色噴發視覺，不做 hit-stop（聖經 §5.4 禁止一般命中頓幀）
       if (comboRef.current >= 5 && comboRef.current % 5 === 0) {
         juiceRef.current?.comboBurst(nx, ny - 0.1, comboRef.current)
+      }
+
+      // 破個人紀錄的那一擊：hit-stop＋金字演出（聖經 §5.4 允許的場合，一場最多觸發一次）
+      if (!recordBrokeRef.current && bestScoreRef.current > 0 && scoreRef.current > bestScoreRef.current) {
+        recordBrokeRef.current = true
         juiceRef.current?.hitStop(100)
+        juiceRef.current?.floatText(nx, ny - 0.14, '🏆 新紀錄！', { color: '#FFD600', size: 40 })
       }
     }
   }, [reportHit])
