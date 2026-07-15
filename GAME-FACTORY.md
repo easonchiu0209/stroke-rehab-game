@@ -56,7 +56,7 @@
 4. **狀態機**：維持 `config → countdown → playing → ended/results` 三階段。
 5. **存檔**：結束時 POST `/api/game/save`，payload 必含 `game_type=<id>`、`difficulty`、`score`、`hits`、`misses`，盡量補 `avg_reaction_ms`、`highest_reach`、`left_hits/right_hits/center_hits`、`duration_secs`。
 6. **首頁註冊**：在 `app/page.tsx` 的 `GAMES` 陣列加一筆 `GameCardData`（id/emoji/title/subtitle/level/levelBadge/description/route=`/<id>`/available）。
-7. **個人頁名稱**：在 `app/profile/page.tsx` 的 `GAME_NAMES` 加 `'<id>': '<title>'`。
+7. **名稱/輪替註冊（四處都要）**：`app/profile/page.tsx` 的 `GAME_NAMES`、`lib/gameInfo.ts` 的 `GAME_INFO`、`lib/quests.ts` 的 `ROTATION`（每日任務輪替池）、`app/therapist/page.tsx` 的名稱表，各加 `'<id>'` 一筆。
 8. **語言**：所有 UI 文案用繁體中文，風格對齊現有遊戲（鼓勵、長者友善）。
 9. **美術對齊（必做）**：視覺一律遵 `ART-STYLE-BIBLE.md`（統一色板／光影／形狀／粒子／juice）。目標物必備「呼吸光暈＋落地陰影＋圓潤高光」三件套；命中必備「粒子 `burst`＋彈跳字 `floatText`＋微震 `shake`」三件套（皆走共用 `components/game/JuiceLayer.tsx`，不自造）。色彩取聖經 §1 色板，動畫數值取 §5，適老紅線（無 >3Hz 閃爍、震動 ≤6px、無懲罰演出）不可違反。需 AI 生底圖時，用聖經 §6 prompt 模板（含共用風格＋負面關鍵詞），存 `public/assets/<id>/`（目錄需先建立，見聖經 §6）。流程順序：spec 規格核可（本契約 §6 核可清單）→ 開發 → 開發中即遵聖經 §1–6 做視覺，不是做完再補。
 

@@ -55,11 +55,11 @@ const PADS: Record<PadId, { nx: number; ny: number; neon: string; label: string 
   R: { nx: 0.78, ny: 0.68, neon: '#F472B6', label: '右' },
 }
 
-type Judge = 'perfect' | 'good' | 'early'
+type Judge = 'perfect' | 'good' | 'early' | 'late'
 
 interface HitRecord {
   pad:      PadId
-  nx:       number
+  nx:       number    // 命中當下的實際手部座標（display-space；供 zone/heatmap 真實分析）
   ny:       number
   offsetMs: number    // 命中時間 − 拍點（負＝早）
   judge:    Judge
@@ -133,6 +133,22 @@ function PlayingView({
   const noHandWarnRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const audioRef      = useRef<AudioContext | null>(null)
   const judgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handPosRef    = useRef<{ nx: number; ny: number } | null>(null)   // 命中當下取用的最新手部座標
+
+  // 個人最佳連擊（僅本機演出用途）：hit-stop 依聖經 §5.4 只允許「破紀錄或最終一擊」
+  // ——用「破歷史最高 combo 的那一擊」觸發，一場最多一次。
+  const bestComboRef   = useRef(0)
+  const recordBrokeRef = useRef(false)
+  useEffect(() => {
+    try { bestComboRef.current = Number(localStorage.getItem('rhythm-drum-best-combo') ?? 0) || 0 } catch { /* noop */ }
+  }, [])
+
+  // 適老紅線（聖經 §5.6）：prefers-reduced-motion 時關閉節拍呼吸/鼓面脈動等裝飾動畫
+  const [reducedMotion] = useState(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
 
   useEffect(() => { gamePhaseRef.current = gamePhase }, [gamePhase])
 
@@ -166,10 +182,21 @@ function PlayingView({
     } catch { /* 無音訊支援時只看視覺 */ }
   }, [])
 
+  // unmount 清理：關閉惰性建立的 AudioContext（避免「再玩一次」remount 累積孤兒 context）
+  useEffect(() => () => {
+    audioRef.current?.close().catch(() => {})
+    audioRef.current = null
+  }, [])
+
   const showJudge = useCallback((text: string, color: string) => {
     setLastJudge({ text, color })
     if (judgeTimerRef.current) clearTimeout(judgeTimerRef.current)
     judgeTimerRef.current = setTimeout(() => setLastJudge(null), 900)
+  }, [])
+
+  // unmount 清理：判定文字的殘留 timer
+  useEffect(() => () => {
+    if (judgeTimerRef.current) clearTimeout(judgeTimerRef.current)
   }, [])
 
   // ── 命中處理 ───────────────────────────────────────────────────────
@@ -184,25 +211,27 @@ function PlayingView({
     setNotes((prev) => prev.filter((n) => n.id !== noteId))
     setCuesState((prev) => prev.filter((c) => c.id !== noteId))
 
-    // 時機判定（offsetMs = 命中 − 拍點；detector 的 spawnTime 已設為拍點）
+    // 時機判定（offsetMs = 命中 − 拍點；detector 的 spawnTime 已設為拍點；負＝早、正＝晚）
     const abs = Math.abs(offsetMs)
     let judge: Judge; let pts: number
-    if (abs <= cfg.perfectMs)      { judge = 'perfect'; pts = 20 }
+    if (abs <= cfg.perfectMs)          { judge = 'perfect'; pts = 20 }
     else if (abs <= cfg.goodMs * 0.85) { judge = 'good'; pts = 10 }
-    else                            { judge = 'early'; pts = 5 }   // 窗口邊緣（多半是提早搶拍）
+    else                               { judge = offsetMs < 0 ? 'early' : 'late'; pts = 5 }   // 窗口邊緣
 
     hitCountRef.current += 1
     setHitCount(hitCountRef.current)
     scoreRef.current += pts
     setScore(scoreRef.current)
-    hitRecordsRef.current.push({ pad: padId, nx: pad.nx, ny: pad.ny, offsetMs, judge })
+    // zone/heatmap 存「命中當下的實際手部座標」（鼓位常數會產生固定假熱區，誤導治療師後台）
+    const hp = handPosRef.current
+    hitRecordsRef.current.push({ pad: padId, nx: hp?.nx ?? pad.nx, ny: hp?.ny ?? pad.ny, offsetMs, judge })
 
     // 鼓面受擊閃亮（juiceSquash 由 CSS class 觸發）
     setPadFlash((prev) => ({ ...prev, [padId]: performance.now() }))
 
-    if (judge === 'early') {
-      // 溫和提示，不懲罰、combo 不中斷歸零但也不累積
-      showJudge('再等一下，跟著拍子', '#94A3B8')
+    if (judge === 'early' || judge === 'late') {
+      // 溫和提示（依早/晚給對的方向），不懲罰、combo 不中斷歸零但也不累積
+      showJudge(judge === 'early' ? '再等一下，跟著拍子' : '再快一點點！', '#94A3B8')
       juiceRef.current?.floatText(pad.nx, pad.ny - 0.08, '+5', { color: '#94A3B8', size: 28 })
       juiceRef.current?.burst(pad.nx, pad.ny, { count: 8, colors: [pad.neon], emojis: ['✨'] })
       return
@@ -224,11 +253,17 @@ function PlayingView({
     }
     juiceRef.current?.shake(0.4)
 
-    // Combo 里程碑：霓虹 comboBurst（§4），×10 的倍數加 hit-stop（§5.4，克制）
+    // Combo 里程碑：霓虹 comboBurst（§4）
     if (comboRef.current > 0 && comboRef.current % 5 === 0) {
       juiceRef.current?.comboBurst(pad.nx, pad.ny - 0.14, comboRef.current, { color: pad.neon })
       feedbackCombo(comboRef.current)
-      if (comboRef.current % 10 === 0) juiceRef.current?.hitStop(90)
+    }
+
+    // 破歷史最高連擊的那一擊：hit-stop＋金字演出（聖經 §5.4 允許的場合，一場最多一次）
+    if (!recordBrokeRef.current && bestComboRef.current > 0 && comboRef.current > bestComboRef.current) {
+      recordBrokeRef.current = true
+      juiceRef.current?.hitStop(100)
+      juiceRef.current?.floatText(pad.nx, pad.ny - 0.14, '🏆 最高連擊！', { color: '#FFD600', size: 40 })
     }
   }, [cfg, showJudge])
 
@@ -251,6 +286,11 @@ function PlayingView({
   })
 
   useEffect(() => { syncDetector(cues) }, [cues, syncDetector])
+
+  // 最新手部座標存 ref，供 handleHit 取「命中當下」位置（state 在 callback 內會是舊值）
+  useEffect(() => {
+    if (handDetected) handPosRef.current = { nx: handNxDisplay, ny: handNy }
+  }, [handDetected, handNxDisplay, handNy])
 
   // ── 節拍出題器 ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -325,6 +365,10 @@ function PlayingView({
   useEffect(() => {
     if (gamePhase !== 'ended' || endedRef.current) return
     endedRef.current = true
+    // 更新本機最高連擊（供下一場的破紀錄 hit-stop 判斷）
+    if (maxComboRef.current > bestComboRef.current) {
+      try { localStorage.setItem('rhythm-drum-best-combo', String(maxComboRef.current)) } catch { /* noop */ }
+    }
     onGameEnd({
       hits:       hitCountRef.current,
       misses:     missCountRef.current,
@@ -391,7 +435,7 @@ function PlayingView({
         <SceneBack theme="calm" />
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'radial-gradient(circle at 50% 78%, rgba(34,211,238,0.20), rgba(167,139,250,0.08) 45%, transparent 68%)',
-          animation: gamePhase === 'playing' ? `drumBreath ${beatSecs}s ease-in-out infinite` : 'none',
+          animation: gamePhase === 'playing' && !reducedMotion ? `drumBreath ${beatSecs}s ease-in-out infinite` : 'none',
           opacity: 0.55,
         }} />
 
@@ -459,10 +503,10 @@ function PlayingView({
                 filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.35))',
               }}
             >
-              {/* 呼吸光暈（對齊 BPM，targetPulse 式外擴光環，不閃爍） */}
+              {/* 呼吸光暈（對齊 BPM，targetPulse 式外擴光環，不閃爍；reduce 時關閉 §5.6） */}
               <div className="absolute inset-0" style={{
                 borderRadius: '50%',
-                animation: gamePhase === 'playing' ? `drumPulse-${padId} ${beatSecs}s ease-in-out infinite` : 'none',
+                animation: gamePhase === 'playing' && !reducedMotion ? `drumPulse-${padId} ${beatSecs}s ease-in-out infinite` : 'none',
               }} />
               {/* 鼓面本體：深色皮面＋霓虹圈邊＋左上圓潤高光 */}
               <div className="absolute inset-0" style={{
