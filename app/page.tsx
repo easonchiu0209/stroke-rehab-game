@@ -8,6 +8,7 @@ import WeeklyReportCard from '@/components/home/WeeklyReportCard'
 import DailyQuestCard from '@/components/home/DailyQuestCard'
 import PrescriptionCard from '@/components/home/PrescriptionCard'
 import MonthlyBadgeCard from '@/components/home/MonthlyBadgeCard'
+import RehabWorldHub from '@/components/home/RehabWorldHub'
 
 interface GameCardData {
   id: string; emoji: string; title: string; subtitle: string
@@ -77,23 +78,21 @@ export default function HomePage() {
     return n
   })()
 
-  const hour = now.getHours()
-  const greet = hour < 11 ? '早安' : hour < 18 ? '午安' : '晚安'
   const rec = avail[Math.floor((sessions?.length ?? 0)) % avail.length] ?? avail[0]
 
   return (
     <div className="min-h-screen bg-slate-100">
       {/* ── 頂部列 ── */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="max-w-xl mx-auto flex items-center justify-between px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🏥</span>
-            <span className="font-extrabold text-lg" style={{ color: '#1769d6' }}>LifeMotionXR</span>
+        <div className="max-w-xl mx-auto flex items-center justify-between px-3 py-2.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+            <span className="hidden text-2xl sm:inline">🏥</span>
+            <span className="truncate font-extrabold text-base sm:text-lg" style={{ color: '#1769d6' }}>LifeMotionXR</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => router.push('/community')} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-lg" title="社群">💬</button>
-            <button onClick={() => router.push('/calibrate')} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-lg" title="校正">🎯</button>
-            <button onClick={() => router.push('/therapist')} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-lg" title="治療師">🩺</button>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <button onClick={() => router.push('/community')} className="hidden w-8 h-8 sm:flex sm:w-9 sm:h-9 rounded-full bg-slate-100 items-center justify-center text-base sm:text-lg" title="社群">💬</button>
+            <button onClick={() => router.push('/calibrate')} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 flex items-center justify-center text-base sm:text-lg" title="校正">🎯</button>
+            <button onClick={() => router.push('/therapist')} className="hidden w-8 h-8 sm:flex sm:w-9 sm:h-9 rounded-full bg-slate-100 items-center justify-center text-base sm:text-lg" title="治療師">🩺</button>
             {session ? (
               <button onClick={() => router.push('/profile')} className="flex items-center gap-1.5 bg-slate-100 rounded-full pl-1 pr-2.5 py-1">
                 <span className="w-7 h-7 rounded-full overflow-hidden bg-slate-300 inline-block">
@@ -102,13 +101,24 @@ export default function HomePage() {
                 <span className="text-sm font-bold text-amber-600">⭐{session.user.totalPoints}</span>
               </button>
             ) : (
-              <button onClick={() => signIn('line')} className="px-3 py-1.5 rounded-full text-white text-sm font-bold" style={{ background: '#06C755' }}>LINE 登入</button>
+              <button onClick={() => signIn('line')} className="px-2 py-1.5 sm:px-3 rounded-full text-white text-xs sm:text-sm font-bold" style={{ background: '#06C755' }}>LINE 登入</button>
             )}
           </div>
         </div>
       </header>
 
       <main className="max-w-xl mx-auto px-3 py-3 flex flex-col gap-3">
+
+        {/* ── 復能世界主場景 ── */}
+        <RehabWorldHub
+          displayName={session?.user.displayName}
+          points={session?.user.totalPoints ?? 0}
+          streak={streak}
+          weekCount={weekCount}
+          recommended={rec}
+          signedIn={Boolean(session)}
+          onLogin={() => signIn('line')}
+        />
 
         {/* ── 裝置引導（LINE 內建瀏覽器切換 / 鏡頭與裝置建議）── */}
         <DeviceTipBanner />
@@ -159,33 +169,6 @@ export default function HomePage() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* ── 問候 / 連續天數 ── */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
-          {session ? (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-200 shrink-0">
-                  {session.user.image ? <img src={session.user.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🙂</div>}
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-slate-800">{greet}，{session.user.displayName}！</p>
-                  <p className="text-sm text-slate-500">{streak > 0 ? `🔥 已連續訓練 ${streak} 天，繼續保持！` : '今天來做一次復能訓練吧 💪'}</p>
-                </div>
-              </div>
-              <button onClick={() => router.push(rec.route)} className="w-full mt-3 py-3 rounded-xl text-white font-extrabold text-lg shadow active:scale-[0.98]" style={{ background: 'linear-gradient(90deg,#2563eb,#1769d6)' }}>
-                ▶ 快速開始：{rec.title}
-              </button>
-            </>
-          ) : (
-            <div className="text-center py-2">
-              <p className="text-4xl mb-1">👋</p>
-              <p className="font-bold text-slate-800">歡迎使用 LifeMotionXR</p>
-              <p className="text-sm text-slate-500 mb-3">登入即可記錄進度、累積積分、兌換獎品</p>
-              <button onClick={() => signIn('line')} className="px-6 py-2.5 rounded-xl text-white font-bold" style={{ background: '#06C755' }}>用 LINE 登入</button>
-            </div>
-          )}
         </div>
 
         {/* ── 本週進度 ── */}

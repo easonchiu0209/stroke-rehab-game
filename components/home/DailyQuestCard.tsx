@@ -57,46 +57,83 @@ export default function DailyQuestCard() {
   }
 
   const doneCount = quests.filter(q => q.claimed).length
+  const readyCount = quests.filter(q => !q.claimed && q.progress >= q.target).length
+  const progressPercent = Math.round((doneCount / quests.length) * 100)
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="font-extrabold text-slate-800">📋 今日任務</p>
-        <span className="text-xs font-bold text-slate-400">{doneCount}/{quests.length} 完成</span>
+    <section className="bg-white rounded-2xl shadow-sm overflow-hidden border border-amber-100" aria-labelledby="daily-adventure-title">
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 border-b border-amber-100">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold text-amber-700">每日 10 分鐘</p>
+            <h2 id="daily-adventure-title" className="font-extrabold text-slate-900">🗺️ 今日冒險路線</h2>
+          </div>
+          <span className="text-xs font-black text-amber-700 bg-white rounded-full px-3 py-1.5 shadow-sm">
+            {doneCount}/{quests.length} 關
+          </span>
+        </div>
+        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white shadow-inner" aria-label={`冒險進度 ${progressPercent}%`}>
+          <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+        </div>
       </div>
-      <div className="flex flex-col gap-2">
-        {quests.map(q => {
+
+      <div className="px-4">
+        {quests.map((q, index) => {
           const done = q.progress >= q.target
           return (
             <div key={q.id}
-              className={`flex items-center gap-3 rounded-xl border p-3 ${
-                q.claimed ? 'border-green-100 bg-green-50/60' : done ? 'border-amber-200 bg-amber-50' : 'border-slate-100 bg-slate-50'
+              className={`relative flex min-h-[78px] items-center gap-3 border-b py-3 last:border-b-0 ${
+                q.claimed ? 'border-green-100' : 'border-slate-100'
               }`}
             >
-              <span className="text-2xl shrink-0">{q.emoji}</span>
+              <div className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl shadow-sm ${
+                q.claimed
+                  ? 'border-green-400 bg-green-100'
+                  : done
+                    ? 'border-amber-400 bg-amber-100'
+                    : 'border-slate-200 bg-slate-50'
+              }`}>
+                {q.claimed ? '✓' : q.emoji}
+              </div>
+              {index < quests.length - 1 && <span className="absolute bottom-[-14px] left-[21px] top-[56px] w-0.5 bg-slate-200" aria-hidden />}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-bold ${q.claimed ? 'text-green-700 line-through' : 'text-slate-800'}`}>{q.title}</p>
-                <p className="text-xs text-slate-400 font-semibold">
-                  {q.progress}/{q.target}　獎勵 🪙{q.reward.coins}{q.reward.pearls > 0 && ` 🫧${q.reward.pearls}`}
+                <p className="text-[11px] font-black text-slate-400">第 {index + 1} 關</p>
+                <p className={`text-sm font-bold ${q.claimed ? 'text-green-700' : 'text-slate-800'}`}>{q.title}</p>
+                <p className="text-xs text-slate-500 font-semibold">
+                  進度 {q.progress}/{q.target} · 獎勵 🪙{q.reward.coins}{q.reward.pearls > 0 && ` 🫧${q.reward.pearls}`}
                 </p>
               </div>
               {q.claimed ? (
-                <span className="text-green-600 text-xl">✓</span>
+                <span className="text-green-700 text-xs font-black shrink-0">已收入</span>
               ) : done ? (
                 <button onClick={() => claim(q)} disabled={claiming === q.id}
-                  className="px-3 py-1.5 rounded-full bg-amber-500 text-white text-sm font-bold active:scale-95 disabled:opacity-50">
+                  className="min-h-11 px-3 py-1.5 rounded-full bg-amber-500 text-white text-sm font-bold shadow active:scale-95 disabled:opacity-50 shrink-0">
                   {claiming === q.id ? '…' : '領取'}
                 </button>
               ) : q.route ? (
                 <button onClick={() => router.push(q.route!)}
-                  className="px-3 py-1.5 rounded-full bg-blue-500 text-white text-sm font-bold active:scale-95">
-                  去玩
+                  className="min-h-11 px-3 py-1.5 rounded-full bg-blue-600 text-white text-sm font-bold shadow active:scale-95 shrink-0">
+                  出發
                 </button>
               ) : null}
             </div>
           )
         })}
       </div>
-    </div>
+
+      <div className={`mx-4 mb-4 flex items-center gap-3 rounded-xl px-4 py-3 ${
+        doneCount === quests.length ? 'bg-green-100 text-green-900' : readyCount > 0 ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-700'
+      }`}>
+        <span className="text-3xl">{doneCount === quests.length ? '🎁' : '🔒'}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold">
+            {doneCount === quests.length ? '今日寶箱已開啟！' : readyCount > 0 ? '有獎勵可以領取' : `再完成 ${quests.length - doneCount} 關開啟寶箱`}
+          </p>
+          <p className="text-xs font-semibold opacity-75">
+            {doneCount === quests.length ? '金幣與珍珠已送進你的家園' : '每一關都會帶回養成資源'}
+          </p>
+        </div>
+      </div>
+    </section>
   )
 }
