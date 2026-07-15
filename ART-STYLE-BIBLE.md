@@ -254,7 +254,7 @@ low-mid saturation so foreground targets pop, [共用風格關鍵詞]
 
 ---
 
-## 7. 應用對照表（既有 7 款 + 待開發節奏復能鼓）
+## 7. 應用對照表（既有 7 款 + 節奏復能鼓）
 
 每款列「現況畫法 → 套用重點 → 升級優先項」。**漸進升級**：先做 P1，不要求一次到位。
 
@@ -267,7 +267,7 @@ low-mid saturation so foreground targets pop, [共用風格關鍵詞]
 | **復能太空射擊** (space-shooter) | shooter | 瞄準＋三開槍模式 | 暗底＋霓虹 combo（§1.4/§2.6）；擊落用 juiceSquash | P1：擊中霓虹 burst＋combo 數字；P2：AI 生飛船/隕石 |
 | **復能開心農場** (farm) | 養成 | 主題背景漸層＋emoji 作物＋商店 | 作物成熟用 juicePopIn；收成噴金幣星星；THEMES 漸層對齊 §2.4 | P2：作物三階段生長底圖（AI）；收成彩紙 |
 | **復能水族箱** (aquarium) | static+養成 | 藍色漸層水族背景＋養魚圖鑑 | 氣泡＝圓潤高光球（§2.2）；餵食/長大 pop；珍珠金光暈 | P2：AI 生魚種底圖；水面光斑＋緩慢氣泡粒子 |
-| **節奏復能鼓** (rhythm-drum) *待建* | rhythm | 尚無（以 static 為底加節拍）| **首發即全套上聖經**（流程順序：spec 規格核可 → 開發 → 開發中即遵本聖經 §1–6）：calm/starry 暗底＋霓虹節拍呼吸（§1.4）＋beat 命中 combo 光效（§4）＋鼓面 juiceSquash＋hit-stop（§5.4）| P1（開發即做）：節拍點用 targetPulse 對齊 BPM；完美命中霓虹 burst＋金分數；背景隨節奏輕微明暗呼吸（≤3Hz） |
+| **節奏復能鼓** (rhythm-drum) | rhythm | 已上線 2026-07-14：calm 暗底＋霓虹三色鼓面＋光軌落音符＋節拍呼吸＋combo 光效/hit-stop | **首發即全套上聖經**（流程順序：spec 規格核可 → 開發 → 開發中即遵本聖經 §1–6）：calm/starry 暗底＋霓虹節拍呼吸（§1.4）＋beat 命中 combo 光效（§4）＋鼓面 juiceSquash＋hit-stop（§5.4）| P1（開發即做）：節拍點用 targetPulse 對齊 BPM；完美命中霓虹 burst＋金分數；背景隨節奏輕微明暗呼吸（≤3Hz） |
 
 > **通則**：任一遊戲升級後，命中一定有「粒子＋彈跳字＋微震」三件套（§4/§5），目標一定有「呼吸光暈＋落地陰影＋圓潤高光」三件套（§2）。缺其一即未達本聖經標準。
 
