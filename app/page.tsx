@@ -9,10 +9,20 @@ import DailyQuestCard from '@/components/home/DailyQuestCard'
 import PrescriptionCard from '@/components/home/PrescriptionCard'
 import MonthlyBadgeCard from '@/components/home/MonthlyBadgeCard'
 import RehabWorldHub from '@/components/home/RehabWorldHub'
+import FamilyCheerCard from '@/components/home/FamilyCheerCard'
+import RemoteFamilyCheerCard from '@/components/home/RemoteFamilyCheerCard'
+import WeeklyChapterCard from '@/components/home/WeeklyChapterCard'
+import FlagshipPassportCard from '@/components/home/FlagshipPassportCard'
+import { recordProductRetentionEvent } from '@/lib/retentionEvents'
 
 interface GameCardData {
   id: string; emoji: string; title: string; subtitle: string
   level: string; levelBadge: string; description: string; route: string; available: boolean
+}
+
+type LaunchableGame = Pick<GameCardData, 'id' | 'emoji' | 'route'> & {
+  title?: string
+  name?: string
 }
 
 const GAMES: GameCardData[] = [
@@ -22,8 +32,9 @@ const GAMES: GameCardData[] = [
   { id: 'farm', emoji: '🌻', title: '復能開心農場', subtitle: '養成 × 肩外展前伸搆取', level: '養成', levelBadge: 'bg-lime-100 text-lime-800', description: '種植作物、養動物，成熟後伸手採收賺金幣，解鎖新物種、擴建農場。跨場次持久養成，越玩農場越大', route: '/farm', available: true },
   { id: 'space-shooter', emoji: '🚀', title: '復能太空射擊', subtitle: '瞄準控制 × 手指捏合', level: 'Level 1–3', levelBadge: 'bg-indigo-100 text-indigo-800', description: '移動手臂瞄準擊落隕石與外星人。三種難度＝碰到就爆、停留發射、捏手指發射，動作由粗到細', route: '/space-shooter', available: true },
   { id: 'aquarium', emoji: '🐠', title: '復能水族箱', subtitle: '養成 × 前伸向下搆取', level: '養成', levelBadge: 'bg-cyan-100 text-cyan-800', description: '伸手釣魚，釣到的魚養在你的水族箱裡會長大、產珍珠，用珍珠解鎖稀有魚種、擴大魚缸，集滿魚類圖鑑', route: '/aquarium', available: true },
+  { id: 'fishing-king', emoji: '🎣', title: '復能釣魚王', subtitle: '選點、觀察與控制收線', level: '任務關卡', levelBadge: 'bg-cyan-100 text-cyan-800', description: '自行選擇釣點、觀察浮標咬鉤，再完成三次受控收線；不計時、不漏魚', route: '/fishing-king', available: true },
   { id: 'color-island', emoji: '🎈', title: '彩球復能島', subtitle: '肩外展與手眼協調', level: 'Level 1–3', levelBadge: 'bg-sky-100 text-sky-700', description: '繽紛彩球從四面八方飄來，伸手觸碰收集，閃避炸彈，訓練肩外展與手眼協調', route: '/color-island', available: true },
-  { id: 'kitchen-catch', emoji: '🍳', title: '復能小廚房', subtitle: '肩屈曲與接取', level: 'Level 1–3', levelBadge: 'bg-amber-100 text-amber-700', description: '食材從鍋邊飛來，快手接住，閃開火焰，訓練肩屈曲與手眼協調', route: '/kitchen-catch', available: true },
+  { id: 'kitchen-catch', emoji: '🍳', title: '復能小廚房', subtitle: '抓、放、保持與攪拌', level: '任務關卡', levelBadge: 'bg-amber-100 text-amber-700', description: '依序備料、穩住鍋具，再畫圈完成料理；不計時、不扣分', route: '/kitchen-catch', available: true },
   { id: 'grasp-place', emoji: '🤲', title: '抓取放置', subtitle: '肩肘協調訓練', level: 'Level 2', levelBadge: 'bg-blue-100 text-blue-800', description: '將手移到指定位置並停留，訓練上肢空間定位與手臂控制穩定度', route: '/game/setup', available: true },
   { id: 'wipe-trace', emoji: '🧹', title: '擦拭軌跡', subtitle: '持續性動作控制', level: 'Level 3', levelBadge: 'bg-orange-100 text-orange-800', description: '沿著指定路徑移動手腕，訓練肩肘協調流暢度與連續動作控制', route: '/wipe-trace', available: true },
   { id: 'pinch-sort', emoji: '🤏', title: '夾取分類', subtitle: '指尖精細操作', level: 'Level 4', levelBadge: 'bg-purple-100 text-purple-800', description: '用拇指與食指捏取物件放入正確顏色的籃子，訓練三指捏握精細動作', route: '/pinch-sort', available: true },
@@ -44,7 +55,7 @@ const BANNERS = [
 ]
 
 interface LbUser { display_name: string; picture_url: string | null; total_points: number }
-interface Sess { accuracy: number; created_at: string }
+interface Sess { accuracy: number; created_at: string; game_type: string }
 interface FeedPost { id: string; content: string; visibility: string; author_name: string; author_pic: string | null; cheers: number }
 
 export default function HomePage() {
@@ -80,6 +91,20 @@ export default function HomePage() {
 
   const rec = avail[Math.floor((sessions?.length ?? 0)) % avail.length] ?? avail[0]
 
+  function launchGame(game: LaunchableGame, source: string) {
+    const gameTitle = game.title ?? game.name ?? game.id
+    recordProductRetentionEvent('home_game_start', {
+      gameId: game.id,
+      gameTitle,
+      route: game.route,
+      source,
+      signedIn: Boolean(session),
+      weekCount,
+      totalSessions: sessions?.length ?? 0,
+    })
+    router.push(game.route)
+  }
+
   return (
     <div className="min-h-screen bg-slate-100">
       {/* ── 頂部列 ── */}
@@ -91,6 +116,7 @@ export default function HomePage() {
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
             <button onClick={() => router.push('/community')} className="hidden w-8 h-8 sm:flex sm:w-9 sm:h-9 rounded-full bg-slate-100 items-center justify-center text-base sm:text-lg" title="社群">💬</button>
+            <button onClick={() => router.push('/education')} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 flex items-center justify-center text-base sm:text-lg" title="衛教與資源" aria-label="衛教與資源">📚</button>
             <button onClick={() => router.push('/calibrate')} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 flex items-center justify-center text-base sm:text-lg" title="校正">🎯</button>
             <button onClick={() => router.push('/therapist')} className="hidden w-8 h-8 sm:flex sm:w-9 sm:h-9 rounded-full bg-slate-100 items-center justify-center text-base sm:text-lg" title="治療師">🩺</button>
             {session ? (
@@ -115,10 +141,38 @@ export default function HomePage() {
           points={session?.user.totalPoints ?? 0}
           streak={streak}
           weekCount={weekCount}
+          totalSessions={sessions?.length ?? 0}
           recommended={rec}
           signedIn={Boolean(session)}
           onLogin={() => signIn('line')}
+          onLaunchGame={launchGame}
         />
+
+        <button
+          type="button"
+          onClick={() => router.push('/education')}
+          className="flex min-h-[88px] w-full items-center gap-3 rounded-xl border border-blue-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-400 active:scale-[0.99]"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-blue-100 text-2xl" aria-hidden>📚</span>
+          <span className="min-w-0 flex-1">
+            <strong className="block text-base font-black text-slate-900">衛教與長照資源</strong>
+            <small className="mt-0.5 block text-xs font-semibold leading-relaxed text-slate-600">中風新知、居家安全、1966、輔具與照顧者支持</small>
+          </span>
+          <span className="text-xl text-blue-600" aria-hidden>›</span>
+        </button>
+
+        <FamilyCheerCard />
+
+        <RemoteFamilyCheerCard />
+
+        <WeeklyChapterCard
+          sessions={sessions ?? []}
+          signedIn={Boolean(session)}
+          onLogin={() => signIn('line')}
+          onLaunchGame={launchGame}
+        />
+
+        <FlagshipPassportCard />
 
         {/* ── 裝置引導（LINE 內建瀏覽器切換 / 鏡頭與裝置建議）── */}
         <DeviceTipBanner />
@@ -161,7 +215,7 @@ export default function HomePage() {
         <div className="bg-white rounded-2xl shadow-sm p-3">
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {avail.map((g, i) => (
-              <button key={g.id} onClick={() => router.push(g.route)} className="flex flex-col items-center gap-1 shrink-0 w-16">
+              <button key={g.id} onClick={() => launchGame(g, 'game-grid')} className="flex flex-col items-center gap-1 shrink-0 w-16">
                 <span className="w-15 h-15 rounded-full flex items-center justify-center text-3xl" style={{ width: 60, height: 60, background: BANNERS[i % BANNERS.length], boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
                   <span style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))' }}>{g.emoji}</span>
                 </span>

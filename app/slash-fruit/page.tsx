@@ -14,6 +14,8 @@ import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
 import { SceneFront } from '@/components/game/GameScene'
 import { OrchardScene } from '@/components/game/SceneKit'
+import { recordFlagshipCompletion } from '@/lib/flagshipUnlocks'
+import FlagshipUnlockNotice from '@/components/results/FlagshipUnlockNotice'
 
 // ── Types & config ────────────────────────────────────────────────────────────
 
@@ -563,6 +565,8 @@ function ResultsView({
         <p className="text-gray-500 mt-1">復能切切樂 · {cfg.label} {cfg.sublabel}</p>
       </div>
 
+      <FlagshipUnlockNotice />
+
       {/* Score */}
       <div className="bg-blue-900 rounded-3xl px-16 py-5 text-center shadow-xl">
         <p className="text-blue-200 text-lg">總分</p>
@@ -683,6 +687,7 @@ export default function SlashFruitPage() {
 
     if (!savedRef.current) {
       savedRef.current = true
+      recordFlagshipCompletion('slash-fruit')
       const fruitRecords = records.filter(r => r.type === 'fruit')
       const avgReactionMs = fruitRecords.length > 0
         ? Math.round(fruitRecords.reduce((s, r) => s + r.reactionMs, 0) / fruitRecords.length)

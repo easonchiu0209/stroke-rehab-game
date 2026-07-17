@@ -20,6 +20,8 @@ import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, feedbackCombo, speak } from '@/lib/feedback'
 import { SceneBack, SceneFront } from '@/components/game/GameScene'
+import { recordFlagshipCompletion } from '@/lib/flagshipUnlocks'
+import FlagshipUnlockNotice from '@/components/results/FlagshipUnlockNotice'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -758,6 +760,8 @@ function ResultsView({
         <p className="text-gray-500 mt-1">節奏復能鼓 · {cfg.label} {cfg.sublabel}</p>
       </div>
 
+      <FlagshipUnlockNotice />
+
       {/* Score */}
       <div className="bg-violet-600 rounded-2xl px-16 py-4 text-center shadow-lg">
         <p className="text-sm text-violet-200">總分</p>
@@ -864,6 +868,7 @@ export default function RhythmDrumPage() {
   const handleGameEnd = useCallback((results: GameResults) => {
     setGameResults(results)
     setPagePhase('results')
+    recordFlagshipCompletion('rhythm-drum')
 
     // 結算語音鼓勵（每場僅播一次）
     if (!spokeResultRef.current) {

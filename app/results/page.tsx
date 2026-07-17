@@ -8,6 +8,7 @@ import { ResultStat } from '@/components/results/ResultStat'
 import { MODE_LABELS } from '@/lib/constants'
 import { formatMs } from '@/lib/gameLogic'
 import { saveGameSession } from '@/lib/saveSession'
+import { recordProductRetentionEvent } from '@/lib/retentionEvents'
 
 export default function ResultsPage() {
   const { state, dispatch } = useGame()
@@ -42,6 +43,12 @@ export default function ResultsPage() {
   const modeName = MODE_LABELS[session.mode]
 
   function handlePlayAgain() {
+    recordProductRetentionEvent('session_replay', {
+      gameType: 'grasp-place',
+      mode: session.mode,
+      accuracy: stats.accuracy,
+      source: 'results',
+    }, `session_replay:${session.sessionStart}`)
     dispatch({ type: 'RESET' })
     router.push('/game/setup')
   }

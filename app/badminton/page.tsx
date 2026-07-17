@@ -12,6 +12,8 @@ import JuiceLayer, { type JuiceHandle } from '@/components/game/JuiceLayer'
 import { useFlowDda, useDdaRecommendation } from '@/hooks/useFlowDda'
 import { feedbackHit, feedbackMiss, speak } from '@/lib/feedback'
 import { CourtScene } from '@/components/game/SceneKit'
+import { recordFlagshipCompletion } from '@/lib/flagshipUnlocks'
+import FlagshipUnlockNotice from '@/components/results/FlagshipUnlockNotice'
 
 // ── Types & config ────────────────────────────────────────────────────────────
 
@@ -472,6 +474,8 @@ function ResultsView({
         <p className="text-gray-500 mt-1">復能羽球 · {cfg.label} {cfg.sublabel}</p>
       </div>
 
+      <FlagshipUnlockNotice />
+
       <div className="bg-emerald-900 rounded-3xl px-16 py-5 text-center shadow-xl">
         <p className="text-emerald-200 text-lg">最長連續對打</p>
         <p className="text-7xl font-black text-yellow-400 leading-none">{maxRally}</p>
@@ -542,6 +546,7 @@ export default function BadmintonPage() {
 
     if (!savedRef.current) {
       savedRef.current = true
+      recordFlagshipCompletion('badminton')
       const avgReactionMs = records.length > 0
         ? Math.round(records.reduce((s, r) => s + r.reactionMs, 0) / records.length)
         : null

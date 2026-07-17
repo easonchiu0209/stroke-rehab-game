@@ -374,6 +374,7 @@
     background: rgba(15, 23, 42, 0.42);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
     backdrop-filter: blur(12px);
+    white-space: nowrap;
   }
 
   .world-cloud {
@@ -396,10 +397,15 @@
     animation-delay: -4s;
   }
 
+  .world-scene {
+    position: relative;
+    min-height: 170px;
+  }
+
   .world-home-mark {
     position: absolute;
     bottom: 1%;
-    left: 50%;
+    left: 70%;
     font-size: 5.2rem;
     filter: drop-shadow(0 7px 7px rgba(20, 83, 45, 0.38));
     transform: translateX(-50%);
@@ -412,8 +418,160 @@
     filter: drop-shadow(0 6px 6px rgba(20, 83, 45, 0.35));
   }
 
-  .world-tree-left { left: 3%; }
-  .world-tree-right { right: 3%; }
+  .world-tree-left { left: 43%; }
+  .world-tree-right { right: 0; }
+
+  .world-growth-mark {
+    position: absolute;
+    z-index: 2;
+    filter: drop-shadow(0 5px 5px rgba(20, 83, 45, 0.34));
+  }
+
+  .world-garden-mark {
+    right: 2%;
+    bottom: 32%;
+    font-size: 2rem;
+  }
+
+  .world-bridge-mark {
+    right: 34%;
+    bottom: 0;
+    font-size: 2.8rem;
+  }
+
+  .world-festival-mark {
+    right: 23%;
+    top: 5%;
+    font-size: 2.2rem;
+    animation: worldCelebrate 2.2s ease-in-out infinite;
+  }
+
+  .world-companion {
+    position: absolute;
+    z-index: 5;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .world-companion-speech {
+    position: absolute;
+    top: 0.75rem;
+    left: 0;
+    width: min(208px, 62vw);
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 8px;
+    padding: 0.55rem 0.65rem;
+    color: #173b2a;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 8px 22px rgba(15, 73, 109, 0.2);
+    backdrop-filter: blur(10px);
+  }
+
+  .world-companion-speech::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 2rem;
+    width: 15px;
+    height: 15px;
+    background: rgba(255, 255, 255, 0.94);
+    transform: rotate(45deg);
+  }
+
+  .world-companion-speech strong,
+  .world-companion-speech p {
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0;
+  }
+
+  .world-companion-speech strong { font-size: 0.72rem; color: #15803d; }
+  .world-companion-speech p { margin-top: 1px; font-size: 0.74rem; font-weight: 800; line-height: 1.35; }
+
+  .world-companion-avatar {
+    position: absolute;
+    bottom: 1%;
+    left: 8%;
+    display: grid;
+    width: 68px;
+    height: 68px;
+    place-items: center;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    box-shadow: 0 9px 18px rgba(20, 83, 45, 0.3), inset 0 1px 0 #ffffff;
+    pointer-events: auto;
+  }
+
+  .world-companion-avatar span {
+    font-size: 2.35rem;
+    filter: drop-shadow(0 3px 3px rgba(15, 73, 109, 0.2));
+    animation: companionBob 2.8s ease-in-out infinite;
+  }
+
+  .world-companion-picker {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    min-height: 150px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 8px;
+    padding: 0.65rem;
+    color: #173b2a;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 73, 109, 0.28);
+    backdrop-filter: blur(14px);
+    pointer-events: auto;
+  }
+
+  .world-icon-button {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid #d1d5db;
+    border-radius: 50%;
+    color: #475569;
+    background: #f8fafc;
+    font-size: 1.2rem;
+    font-weight: 900;
+  }
+
+  .world-companion-option {
+    min-width: 0;
+    min-height: 92px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 0.35rem 0.2rem;
+    color: #334155;
+    background: #f8fafc;
+  }
+
+  .world-companion-option[aria-pressed='true'] {
+    border-color: #22c55e;
+    background: #f0fdf4;
+  }
+
+  .world-companion-option span {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 0.2rem;
+    place-items: center;
+    border-radius: 50%;
+    font-size: 1.45rem;
+  }
+
+  .world-companion-option strong,
+  .world-companion-option small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .world-companion-option strong { font-size: 0.7rem; }
+  .world-companion-option small { margin-top: 1px; font-size: 0.55rem; color: #64748b; }
 
   .world-place-button {
     display: flex;
@@ -443,7 +601,9 @@
     letter-spacing: 0;
   }
 
-  .world-place-button strong { font-size: 0.78rem; }
+  .world-place-button > span:last-child { min-width: 0; flex: 1; }
+
+  .world-place-button strong { font-size: 0.78rem; white-space: nowrap; }
   .world-place-button small { margin-top: 1px; font-size: 0.58rem; color: rgba(255, 255, 255, 0.78); }
 
   .world-adventure-button {
@@ -469,9 +629,209 @@
   .world-adventure-button:hover { filter: brightness(1.04); }
   .world-adventure-button:active { transform: scale(0.98); }
 
+  .family-cheer-card {
+    display: flex;
+    min-height: 104px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid #fecdd3;
+    border-radius: 12px;
+    padding: 0.9rem;
+    background: linear-gradient(135deg, #fff1f2, #ffffff 56%, #fff7ed);
+    box-shadow: 0 5px 16px rgba(190, 24, 93, 0.08);
+  }
+
+  .family-cheer-icon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    place-items: center;
+    border-radius: 50%;
+    background: #ffe4e6;
+    font-size: 1.75rem;
+    box-shadow: inset 0 0 0 1px #fecdd3;
+  }
+
+  .family-cheer-edit {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    place-items: center;
+    border: 1px solid #fda4af;
+    border-radius: 50%;
+    color: #be123c;
+    background: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 900;
+    box-shadow: 0 3px 10px rgba(190, 24, 93, 0.1);
+  }
+
+  .family-cheer-input {
+    min-width: 0;
+    min-height: 44px;
+    border: 1px solid #fda4af;
+    border-radius: 8px;
+    padding: 0 0.65rem;
+    color: #334155;
+    background: #ffffff;
+    font-size: 0.875rem;
+    outline: none;
+  }
+
+  .family-cheer-input:focus { border-color: #e11d48; box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.14); }
+
+  .family-cheer-cancel,
+  .family-cheer-save {
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 0 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  .family-cheer-cancel { color: #64748b; background: #ffffff; border: 1px solid #cbd5e1; }
+  .family-cheer-save { color: #ffffff; background: #e11d48; }
+  .family-cheer-save:disabled { opacity: 0.45; }
+
+  .weekly-chapter {
+    overflow: hidden;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    color: #0f172a;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(30, 64, 175, 0.08);
+  }
+
+  .weekly-chapter-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #eff6ff, #ffffff 56%, #f0fdf4);
+  }
+
+  .weekly-chapter-emblem {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    place-items: center;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    color: #ffffff;
+    font-size: 1.7rem;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+  }
+
+  .weekly-complete-badge {
+    flex: 0 0 auto;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+    color: #166534;
+    background: #dcfce7;
+    font-size: 0.68rem;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .weekly-milestones {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-block: 1px solid #e2e8f0;
+    background: #f8fafc;
+  }
+
+  .weekly-milestone {
+    position: relative;
+    min-width: 0;
+    min-height: 108px;
+    padding: 0.8rem 0.35rem 0.65rem;
+    text-align: center;
+  }
+
+  .weekly-milestone + .weekly-milestone { border-left: 1px solid #e2e8f0; }
+
+  .weekly-milestone-dot {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    margin: 0 auto 0.35rem;
+    place-items: center;
+    border: 2px solid #cbd5e1;
+    border-radius: 50%;
+    color: #64748b;
+    background: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 900;
+  }
+
+  .weekly-milestone strong,
+  .weekly-milestone small {
+    display: block;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .weekly-milestone strong { font-size: 0.72rem; color: #334155; }
+  .weekly-milestone small { margin-top: 2px; font-size: 0.62rem; line-height: 1.25; color: #64748b; }
+
+  .weekly-milestone.is-complete { background: #f0fdf4; }
+  .weekly-milestone.is-complete .weekly-milestone-dot { border-color: #22c55e; color: #ffffff; background: #16a34a; }
+  .weekly-milestone.is-complete strong { color: #166534; }
+
+  .weekly-chapter-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .weekly-chapter-footer p {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #475569;
+  }
+
+  .weekly-chapter-action {
+    display: inline-flex;
+    min-height: 44px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 8px;
+    padding: 0 0.8rem;
+    color: #ffffff;
+    background: #2563eb;
+    box-shadow: 0 5px 12px rgba(37, 99, 235, 0.2);
+    font-size: 0.75rem;
+    font-weight: 900;
+  }
+
+  @media (max-width: 390px) {
+    .weekly-chapter-footer { align-items: stretch; flex-direction: column; }
+    .weekly-chapter-action { justify-content: center; width: 100%; }
+  }
+
   @keyframes worldDrift {
     0%, 100% { transform: translateX(0); }
     50% { transform: translateX(10px); }
+  }
+
+  @keyframes companionBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  @keyframes worldCelebrate {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(4deg); }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -479,7 +839,9 @@
     .juice-pop-in,
     .game-menu-screen button,
     .game-lobby-card,
-    .world-cloud {
+    .world-cloud,
+    .world-companion-avatar span,
+    .world-festival-mark {
       animation: none !important;
       transition: none !important;
     }

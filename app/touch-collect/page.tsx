@@ -16,6 +16,8 @@ import type { HandLandmarker } from '@mediapipe/tasks-vision'
 import { saveGameSession } from '@/lib/saveSession'
 import { feedbackHit, feedbackMiss, feedbackCombo, speak } from '@/lib/feedback'
 import { SceneBack, SceneFront } from '@/components/game/GameScene'
+import { recordFlagshipCompletion } from '@/lib/flagshipUnlocks'
+import FlagshipUnlockNotice from '@/components/results/FlagshipUnlockNotice'
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -285,6 +287,7 @@ export default function TouchCollectPage() {
   useEffect(() => {
     if (phase !== 'results' || savedRef.current) return
     savedRef.current = true
+    recordFlagshipCompletion('touch-collect')
 
     const hits   = dotResults.filter((r) => r.collected).length
     const misses = dotResults.length - hits
@@ -540,6 +543,8 @@ export default function TouchCollectPage() {
           碰點收集 · {config.label}難度
         </p>
       </div>
+
+      <FlagshipUnlockNotice />
 
       {/* Stats grid */}
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-md border border-gray-100 p-6">

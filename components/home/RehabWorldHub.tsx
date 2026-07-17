@@ -1,8 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import WorldCompanion from '@/components/home/WorldCompanion'
 
 interface RecommendedGame {
+  id: string
   emoji: string
   title: string
   route: string
@@ -13,9 +15,11 @@ interface RehabWorldHubProps {
   points: number
   streak: number
   weekCount: number
+  totalSessions: number
   recommended: RecommendedGame
   signedIn: boolean
   onLogin: () => void
+  onLaunchGame: (game: RecommendedGame, source: string) => void
 }
 
 export default function RehabWorldHub({
@@ -23,12 +27,16 @@ export default function RehabWorldHub({
   points,
   streak,
   weekCount,
+  totalSessions,
   recommended,
   signedIn,
   onLogin,
+  onLaunchGame,
 }: RehabWorldHubProps) {
   const router = useRouter()
-  const level = Math.max(1, Math.floor(points / 300) + 1)
+  const level = Math.max(1, Math.floor(totalSessions / 3) + 1)
+  const growthStage = Math.min(level, 4)
+  const nextGrowthIn = 3 - (totalSessions % 3)
 
   return (
     <section className="world-hub" aria-labelledby="world-title">
@@ -38,9 +46,9 @@ export default function RehabWorldHub({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-white/85">晨光小鎮 · Lv.{level}</p>
-            <h1 id="world-title" className="text-3xl font-black drop-shadow-md">我的復能世界</h1>
+            <h1 id="world-title" className="text-2xl font-black drop-shadow-md sm:text-3xl">我的復能世界</h1>
             <p className="mt-1 text-sm font-semibold text-white/90 drop-shadow-sm">
-              {signedIn ? `${displayName ?? '勇者'}，今天也讓小鎮成長一點` : '每天完成冒險，打造自己的小鎮'}
+              {signedIn ? `${displayName ?? '勇者'}，今天也讓小鎮成長一點` : '每天冒險，打造自己的小鎮'}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5 text-sm font-black">
@@ -49,12 +57,16 @@ export default function RehabWorldHub({
           </div>
         </div>
 
-        <div className="relative flex-1" aria-hidden>
+        <div className="world-scene flex-1">
           <span className="world-cloud world-cloud-a">☁️</span>
           <span className="world-cloud world-cloud-b">☁️</span>
           <span className="world-home-mark">🏡</span>
           <span className="world-tree-mark world-tree-left">🌳</span>
           <span className="world-tree-mark world-tree-right">🌲</span>
+          {growthStage >= 2 && <span className="world-growth-mark world-garden-mark" title="新生花園">🌷🌼</span>}
+          {growthStage >= 3 && <span className="world-growth-mark world-bridge-mark" title="新生橋樑">🌉</span>}
+          {growthStage >= 4 && <span className="world-growth-mark world-festival-mark" title="小鎮慶典">🎏</span>}
+          <WorldCompanion displayName={displayName} signedIn={signedIn} streak={streak} weekCount={weekCount} />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -69,7 +81,7 @@ export default function RehabWorldHub({
         </div>
 
         {signedIn ? (
-          <button onClick={() => router.push(recommended.route)} className="world-adventure-button">
+          <button onClick={() => onLaunchGame(recommended, 'world-hub')} className="world-adventure-button">
             <span className="text-xl">{recommended.emoji}</span>
             <span className="min-w-0 flex-1 truncate text-left">開始今日冒險：{recommended.title}</span>
             <span aria-hidden>▶</span>
@@ -83,7 +95,7 @@ export default function RehabWorldHub({
         )}
 
         <p className="mt-2 text-center text-xs font-bold text-white/85">
-          本週完成 {weekCount} 場 · 訓練會帶回農場金幣與水族箱珍珠
+          {totalSessions > 0 ? `再完成 ${nextGrowthIn} 場，小鎮會出現新變化` : '完成 3 場冒險，解鎖小鎮的第一座花園'}
         </p>
       </div>
     </section>
