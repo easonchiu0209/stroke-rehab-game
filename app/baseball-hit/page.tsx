@@ -9,15 +9,18 @@
 // 直線拋物線判定，且目標視覺大小（visualEm）為出生時的固定值，無法原生做「彎曲軌跡」或「由小變大」。
 // 因此：
 //   1) 判定（hit-test）：完全沿用 hook 原生的 x0/vx/y0/vy/gravity 拋物線＋固定半徑，不動 hook。
-//   2) 視覺（由小變大＋曲球/蝴蝶球飄忽）：另外在遊戲層用 CSS keyframe 動畫繪出一顆「偽 3D 球」，
-//      位置＝hook 匯出的 getTargetPos() 真實物理座標 + 一個「有界」的視覺彎曲偏移（曲球=固定側向漂移
-//      +小幅正弦；蝴蝶球=較大正弦飄動），偏移幅度刻意 < 判定半徑，讓玩家對著「看到的彎曲球」揮擊
-//      仍會命中，不會有「看跟打不同位置」的不公平感。hook 自己畫的目標圓圈/命中閃光保留但調暗
-//      （canvas opacity），只當作手部游標與命中閃光的來源（同 rhythm-drum 手法）。
-//   3] 時間窗判定：hook 的 onHit 回傳 reactionMs（命中時刻－出生時刻），遊戲層拿它跟「預期抵達打擊
+//   2) 視覺（由小變大＋曲球/蝴蝶球飄忽）：遊戲層自備一張「與偵測 canvas 完全同座標系」的 canvas
+//      （同尺寸=video 幀、同 object-cover、同 scaleX(-1) 鏡像、同 (1-nx)*W 繪製慣例），每幀以
+//      getTargetPos() 的真實物理座標＋一個「有界」的視覺飄忽偏移（曲球=功能性側向位移進判定路徑、
+//      蝴蝶球=純視覺正弦飄動）畫出偽 3D 球與打擊區光圈。偏移幅度刻意 < 判定半徑，讓玩家對著
+//      「看到的球」揮擊仍會命中。因為位置每幀由 spawnTime 直接推算，視覺與判定零時間差、零座標差。
+//      hook 自己畫的目標圓圈/命中閃光保留但調暗（canvas opacity），只當作手部游標與命中閃光的來源。
+//   3) 時間窗判定：hook 的 onHit 回傳 reactionMs（命中時刻－出生時刻），遊戲層拿它跟「預期抵達打擊
 //      區時間」比對，分類 perfect/good/foul（早/晚仍算安打，不罰），完全在遊戲層自己算（契約允許）。
+//   4) 視覺球淡出完畢（抵達後 goodMs+250ms）即由遊戲層主動移除判定目標並視同好球，
+//      不留「打隱形球得分」的窗口（hook 的離場 onExpired 與此路徑用 resolvedRef 去重）。
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useHandLandmarker } from '@/hooks/useHandLandmarker'
 import { useCamera } from '@/hooks/useCamera'
@@ -45,7 +48,7 @@ interface PitchDef {
   driftRange?: [number, number]   // 曲球：左右彎曲的側向位移量（功能性，會真的影響判定路徑）
   wobbleAmp?:  number             // 視覺飄忽幅度（僅影響繪圖，< 判定半徑，不影響公平性）
   wobbleFreq?: number
-  spinDeg:     number             // 視覺自轉總量（曲球轉得快、蝴蝶球幾乎不轉）
+  spinDeg:     number             // 視覺自轉速率（度/秒基準；曲球轉得快、蝴蝶球幾乎不轉）
   tint:        string             // 命中特效/光暈點綴色
 }
 
@@ -54,7 +57,8 @@ const PITCH_DEFS: Record<PitchType, PitchDef> = {
   fastball:    { name: '快速球', gravity: 0.26, spinDeg: 640, tint: '#F87171' },
   changeup:    { name: '變速球', gravity: 0.42, spinDeg: 340, tint: '#FBBF24' },
   curveball:   { name: '曲球',   gravity: 0.55, driftRange: [0.09, 0.13], wobbleAmp: 0.018, wobbleFreq: 1.6, spinDeg: 880, tint: '#A78BFA' },
-  knuckleball: { name: '蝴蝶球', gravity: 0.28, wobbleAmp: 0.05, wobbleFreq: 1.9, spinDeg: 35, tint: '#34D399' },
+  // 蝴蝶球飄忽幅度 0.03：需 < 判定半徑換算的 normalized 寬（hard 60px/640 ≈ 0.094），留足容錯餘裕
+  knuckleball: { name: '蝴蝶球', gravity: 0.28, wobbleAmp: 0.03, wobbleFreq: 1.9, spinDeg: 35, tint: '#34D399' },
 }
 
 interface Cfg {
@@ -99,6 +103,7 @@ const BATTING_X: Record<BatSide, number> = { right: 0.60, left: 0.40 }
 const BATTING_Y = 0.74
 const RELEASE_X = 0.5
 const RELEASE_Y = 0.15
+const WINDUP_LEAD_MS = 420   // 投手揮臂先行量：揮臂動畫先跑，球在前送階段才出現
 
 interface PitchMeta {
   type:      PitchType
@@ -108,16 +113,7 @@ interface PitchMeta {
 
 interface HitRecord { nx: number; ny: number; offsetMs: number; judge: Judge; type: PitchType }
 
-// ── 原創棒球圖示（inline SVG，無外部檔案依賴）──────────────────────────────
-const BASEBALL_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
-  `<circle cx='50' cy='50' r='44' fill='white'/>` +
-  `<circle cx='50' cy='50' r='44' fill='none' stroke='rgba(0,0,0,0.14)' stroke-width='2'/>` +
-  `<path d='M20,18 Q46,50 20,82' stroke='#E11D48' stroke-width='4.5' fill='none' stroke-linecap='round'/>` +
-  `<path d='M80,18 Q54,50 80,82' stroke='#E11D48' stroke-width='4.5' fill='none' stroke-linecap='round'/>` +
-  `</svg>`
-const BASEBALL_SVG_URL = `data:image/svg+xml;utf8,${encodeURIComponent(BASEBALL_SVG)}`
-
-// ── 純函式：出題與視覺曲線 ────────────────────────────────────────────────
+// ── 純函式：出題與視覺 ────────────────────────────────────────────────────
 
 function pickPitchType(cfg: Cfg): PitchType {
   const available = new Set(Object.keys(cfg.flightMs))
@@ -158,37 +154,36 @@ function visualWobble(def: PitchDef, tSec: number): number {
   return def.wobbleAmp * Math.sin(tSec * w * Math.PI * 2)
 }
 
-/** 用取樣點組出這顆球專屬的 CSS @keyframes：由小變大的偽 3D 飛行＋抵達後續飛一段再淡出。 */
-function buildBallKeyframes(target: SlashTarget, meta: PitchMeta, def: PitchDef, keyName: string, cfg: Cfg): string {
-  const tailMs  = Math.max(cfg.goodMs + 250, 400)
-  const totalMs = meta.flightMs + tailMs
-  const stops   = [0, 8, 16, 25, 35, 45, 55, 65, 75, 85, 92, 100]
-
-  const lines = stops.map(pct => {
-    const p   = pct / 100
-    const t   = p * totalMs
-    const pos = getTargetPos(target, target.spawnTime + t)
-    const wob = visualWobble(def, t / 1000)
-    const nx  = pos.nx + wob
-    const ny  = pos.ny
-
-    const pFlight = Math.min(1, t / meta.flightMs)
-    let scale: number
-    let opacity: number
-    if (t <= meta.flightMs) {
-      scale = 0.22 + 0.78 * Math.pow(pFlight, 1.6)
-      opacity = pct === 0 ? 0 : 1
-    } else {
-      const tail = Math.min(1, (t - meta.flightMs) / tailMs)
-      scale = 1 + 0.15 * tail
-      opacity = Math.max(0, 1 - tail * 1.3)
-    }
-    const rot = pFlight * def.spinDeg + (t > meta.flightMs ? ((t - meta.flightMs) / 1000) * def.spinDeg * 0.25 : 0)
-
-    return `  ${pct}% { left: calc(${(nx * 100).toFixed(2)}% - 50%); top: calc(${(ny * 100).toFixed(2)}% - 50%); transform: scale(${scale.toFixed(3)}) rotate(${rot.toFixed(0)}deg); opacity: ${opacity.toFixed(2)}; }`
-  })
-
-  return `@keyframes ${keyName} {\n${lines.join('\n')}\n}`
+/** 原創棒球 sprite：白球體＋紅縫線＋左上高光＋球種色光暈，一次烤進離屏 canvas，
+ *  之後每幀只 drawImage（同 useSlashDetector 游標 sprite 的效能慣例，避免每幀 shadowBlur）。 */
+function makeBallSprite(radius: number, tint: string): { canvas: HTMLCanvasElement; half: number } | null {
+  const glow = radius * 0.55
+  const half = Math.ceil(radius + glow + 4)
+  const c = document.createElement('canvas')
+  c.width = c.height = half * 2
+  const ctx = c.getContext('2d')
+  if (!ctx) return null
+  ctx.translate(half, half)
+  // 球種色光暈（烤進 sprite，取代逐幀 drop-shadow）
+  ctx.shadowColor = `${tint}AA`
+  ctx.shadowBlur = glow
+  ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2)
+  ctx.fillStyle = '#FFFFFF'; ctx.fill()
+  ctx.shadowBlur = 0
+  // 球體漸層（聖經 §2.2 左上高光）
+  const g = ctx.createRadialGradient(-radius * 0.3, -radius * 0.34, radius * 0.05, 0, 0, radius)
+  g.addColorStop(0, '#FFFFFF'); g.addColorStop(0.7, '#F1F5F9'); g.addColorStop(1, '#CBD5E1')
+  ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill()
+  ctx.strokeStyle = 'rgba(15,23,42,0.18)'
+  ctx.lineWidth = Math.max(1.5, radius * 0.05)
+  ctx.stroke()
+  // 紅縫線（原創程式繪製，弧心在球外的兩道對稱縫線）
+  ctx.strokeStyle = '#E11D48'
+  ctx.lineWidth = Math.max(2, radius * 0.1)
+  ctx.lineCap = 'round'
+  ctx.beginPath(); ctx.arc(-radius * 1.5, 0, radius * 1.15, -0.5, 0.5); ctx.stroke()
+  ctx.beginPath(); ctx.arc(radius * 1.5, 0, radius * 1.15, Math.PI - 0.5, Math.PI + 0.5); ctx.stroke()
+  return { canvas: c, half }
 }
 
 // ── ConfigView ────────────────────────────────────────────────────────────
@@ -278,7 +273,7 @@ function ConfigView({
       </div>
 
       <p className="text-sm text-gray-500 max-w-lg text-center">
-        💡 球飛近打擊區時，伸手揮過去讓偵測圓圈碰到球就算擊中。抓得越準轟出全壘打，沒揮到只是好球，不扣分。
+        💡 球飛近打擊區時，伸手揮過去讓偵測圓圈碰到它就算擊中。抓得越準轟出全壘打，沒揮到只是好球，不扣分。
       </p>
 
       <div className="flex gap-4 w-full max-w-lg">
@@ -311,9 +306,10 @@ function PlayingView({
   const cfg = CFGS[difficulty]
   const battingX = BATTING_X[batSide]
 
-  const videoRef  = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const juiceRef  = useRef<JuiceHandle>(null)
+  const videoRef      = useRef<HTMLVideoElement>(null)
+  const canvasRef     = useRef<HTMLCanvasElement>(null)
+  const ballCanvasRef = useRef<HTMLCanvasElement>(null)   // 遊戲層視覺 canvas（與偵測 canvas 同座標系）
+  const juiceRef      = useRef<JuiceHandle>(null)
 
   const { landmarker }                         = useHandLandmarker()
   const { isReady: cameraReady, startCamera, stopCamera, isMirrored } = useCamera(videoRef)
@@ -331,8 +327,10 @@ function PlayingView({
   const [noHand, setNoHand]       = useState(false)
   const [judgeMsg, setJudgeMsg]   = useState<{ text: string; color: string } | null>(null)
   const [inningMsg, setInningMsg] = useState<string | null>(null)
+  const [windupKey, setWindupKey] = useState(0)   // >0 時觸發投手揮臂動畫（每球 +1 重播）
 
   const phaseRef      = useRef<'countdown' | 'playing' | 'ended'>('countdown')
+  const targetsRef    = useRef<SlashTarget[]>([])
   const scoreRef      = useRef(0)
   const hitCountRef   = useRef(0)
   const missCountRef  = useRef(0)
@@ -340,11 +338,15 @@ function PlayingView({
   const comboRef      = useRef(0)
   const recordsRef    = useRef<HitRecord[]>([])
   const pitchHitsRef  = useRef<Partial<Record<PitchType, number>>>({})
+  const resolvedRef   = useRef(new Set<number>())   // 已結案（命中或視同好球）的球 id：hook 離場回呼與視覺淡出去重
   const savedRef      = useRef(false)
   const noHandTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nextPitchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const windupTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const missTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])   // 每球的兜底結案 timer
   const judgeTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inningTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const endTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ballMetaRef   = useRef(new Map<number, PitchMeta>())
 
   // 個人最佳分（hit-stop 僅在破紀錄那一擊觸發，聖經 §5.4，一場最多一次）
@@ -360,6 +362,7 @@ function PlayingView({
   )
 
   useEffect(() => { phaseRef.current = phase }, [phase])
+  useEffect(() => { targetsRef.current = targets }, [targets])
 
   const { hint: poseHint } = usePoseMonitor({
     videoRef, isMirrored,
@@ -402,21 +405,39 @@ function PlayingView({
     const { target, meta } = makePitch(cfg, battingX, getFactor())
     ballMetaRef.current.set(target.id, meta)
     setTargets([target])
+    // 兜底結案（冪等，resolvedRef 去重）：正常情況由 rAF 繪製迴圈在淡出完畢時結案，
+    // 但分頁被瞬間凍結（切頁/系統暫停 rAF）時 rAF 不跑，改由此 timer 到點視同好球，
+    // 保證「一球必有下一球」的遊戲節奏不依賴 rAF。
+    missTimersRef.current.push(
+      setTimeout(() => registerMissRef.current(target.id), meta.flightMs + cfg.goodMs + 250 + 120)
+    )
   }, [cfg, battingX, getFactor])
+
+  /** 投手先揮臂，WINDUP_LEAD_MS 後球才出手（消除「先有球後揮臂」的順序矛盾）。 */
+  const pitchWithWindup = useCallback(() => {
+    if (phaseRef.current !== 'playing') return
+    setWindupKey(k => k + 1)
+    if (windupTimer.current) clearTimeout(windupTimer.current)
+    windupTimer.current = setTimeout(() => {
+      if (phaseRef.current === 'playing') spawnPitch()
+    }, WINDUP_LEAD_MS)
+  }, [spawnPitch])
 
   const scheduleNext = useCallback(() => {
     if (nextPitchTimer.current) clearTimeout(nextPitchTimer.current)
-    nextPitchTimer.current = setTimeout(() => {
-      if (phaseRef.current === 'playing') spawnPitch()
-    }, cfg.gapMs)
-  }, [cfg.gapMs, spawnPitch])
+    nextPitchTimer.current = setTimeout(pitchWithWindup, Math.max(250, cfg.gapMs - WINDUP_LEAD_MS))
+  }, [cfg.gapMs, pitchWithWindup])
 
   // 開場投出第一球
   useEffect(() => {
     if (phase !== 'playing') return
-    spawnPitch()
+    resolvedRef.current.clear()
+    pitchWithWindup()
     return () => {
       if (nextPitchTimer.current) clearTimeout(nextPitchTimer.current)
+      if (windupTimer.current) clearTimeout(windupTimer.current)
+      missTimersRef.current.forEach(t => clearTimeout(t))
+      missTimersRef.current = []
     }
   }, [phase]) // eslint-disable-line
 
@@ -433,17 +454,20 @@ function PlayingView({
     if (phase !== 'ended' || savedRef.current) return
     savedRef.current = true
     if (nextPitchTimer.current) clearTimeout(nextPitchTimer.current)
+    if (windupTimer.current) clearTimeout(windupTimer.current)
     if (scoreRef.current > bestScoreRef.current) {
       try { localStorage.setItem('baseball-hit-best-score', String(scoreRef.current)) } catch { /* noop */ }
     }
     speak(hitCountRef.current >= 6 ? '太棒了，打得很好！' : '辛苦了，下次再加油！')
-    setTimeout(() => onEnd(hitCountRef.current, missCountRef.current, recordsRef.current, pitchHitsRef.current), 600)
+    endTimer.current = setTimeout(() => onEnd(hitCountRef.current, missCountRef.current, recordsRef.current, pitchHitsRef.current), 600)
   }, [phase, onEnd])
 
   const handleHit = useCallback((
     id: number, _type: 'fruit' | 'bomb', reactionMs: number, nx: number, ny: number,
   ) => {
     if (phaseRef.current !== 'playing') return
+    if (resolvedRef.current.has(id)) return
+    resolvedRef.current.add(id)
     const meta = ballMetaRef.current.get(id)
     ballMetaRef.current.delete(id)
     setTargets(prev => prev.filter(t => t.id !== id))
@@ -501,8 +525,11 @@ function PlayingView({
     scheduleNext()
   }, [cfg, reportHit, showJudge, scheduleNext])
 
-  const handleExpired = useCallback((id: number) => {
+  /** 一球視同好球結案（視覺淡出完畢或 hook 離場回呼，resolvedRef 去重）。 */
+  const registerMiss = useCallback((id: number) => {
     if (phaseRef.current !== 'playing') return
+    if (resolvedRef.current.has(id)) return
+    resolvedRef.current.add(id)
     ballMetaRef.current.delete(id)
     setTargets(prev => prev.filter(t => t.id !== id))
     reportMiss()
@@ -520,12 +547,100 @@ function PlayingView({
     scheduleNext()
   }, [reportMiss, showInning, scheduleNext])
 
+  const registerMissRef = useRef(registerMiss)
+  useEffect(() => { registerMissRef.current = registerMiss }, [registerMiss])
+
+  const handleExpired = useCallback((id: number) => { registerMiss(id) }, [registerMiss])
+
   const { handDetected, setTargets: syncDetector } = useSlashDetector({
     landmarker, videoRef, canvasRef, isActive, isMirrored,
     onHit: handleHit, onExpired: handleExpired,
   })
 
   useEffect(() => { syncDetector(targets) }, [targets, syncDetector])
+
+  // ── 遊戲層視覺 canvas：偽 3D 球＋打擊區光圈（與偵測 canvas 完全同座標系）──
+  // 尺寸=video 幀、CSS 同 object-cover＋scaleX(-1)、繪製同 (1-nx)*W 慣例 → 視覺與判定零座標差；
+  // 位置每幀由 spawnTime 推算 → 無 CSS 動畫起跑延遲。
+  useEffect(() => {
+    if (phase !== 'playing') return
+    const spriteCache = new Map<string, { canvas: HTMLCanvasElement; half: number } | null>()
+    let raf = 0
+
+    const loop = () => {
+      const canvas = ballCanvasRef.current
+      if (!canvas) { raf = requestAnimationFrame(loop); return }
+      const video = videoRef.current
+      const W = video?.videoWidth || 640
+      const H = video?.videoHeight || 480
+      if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H }
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { raf = requestAnimationFrame(loop); return }
+      ctx.clearRect(0, 0, W, H)
+
+      const now = performance.now()
+      const dispScale = W / 640
+
+      // 打擊區光圈：半徑=判定半徑（同 hook 的 hitRadiusPx*dispScale），呼吸依聖經 §2.3/§5.5（reduce 時靜態）
+      const zoneR = cfg.hitRadiusPx * dispScale
+      const breathe = reducedMotion ? 0 : 0.5 + 0.5 * Math.sin((now / 1200) * Math.PI * 2)
+      const zx = (1 - battingX) * W          // 同 hook：CSS scaleX(-1) 補償
+      const zy = BATTING_Y * H
+      ctx.beginPath()
+      ctx.arc(zx, zy, zoneR, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(255,255,255,0.10)'
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(zx, zy, zoneR * (1 + 0.04 * breathe), 0, Math.PI * 2)
+      ctx.strokeStyle = `rgba(255,255,255,${0.55 - 0.3 * breathe})`
+      ctx.lineWidth = 4 * dispScale
+      ctx.stroke()
+
+      // 偽 3D 球
+      const expired: number[] = []
+      for (const t of targetsRef.current) {
+        const meta = ballMetaRef.current.get(t.id)
+        if (!meta) continue
+        const def = PITCH_DEFS[meta.type]
+        const age = now - t.spawnTime
+        const tailMs = cfg.goodMs + 250
+        if (age > meta.flightMs + tailMs) { expired.push(t.id); continue }   // 淡出完＝視同好球（不留隱形球）
+
+        const pos = getTargetPos(t, now)
+        const nx = pos.nx + visualWobble(def, age / 1000)
+        const cx = (1 - nx) * W
+        const cy = pos.ny * H
+        const pF = Math.min(1, age / meta.flightMs)
+        const scale = 0.22 + 0.78 * Math.pow(pF, 1.6)   // 由小變大＝偽 3D 進場
+        const alpha = age <= meta.flightMs ? 1 : Math.max(0, 1 - ((age - meta.flightMs) / tailMs) * 1.3)
+        const rot = (age / 1000) * def.spinDeg * (Math.PI / 180)
+
+        const ballR = cfg.hitRadiusPx * 0.8 * dispScale
+        const key = `${Math.round(ballR)}|${def.tint}`
+        if (!spriteCache.has(key)) spriteCache.set(key, makeBallSprite(ballR, def.tint))
+        const sprite = spriteCache.get(key)
+        if (!sprite) continue
+
+        ctx.save()
+        ctx.globalAlpha = alpha
+        ctx.translate(cx, cy)
+        ctx.rotate(rot)
+        const d = sprite.half * 2 * scale
+        ctx.drawImage(sprite.canvas, -sprite.half * scale, -sprite.half * scale, d, d)
+        ctx.restore()
+      }
+      if (expired.length) expired.forEach(id => registerMissRef.current(id))
+
+      raf = requestAnimationFrame(loop)
+    }
+
+    raf = requestAnimationFrame(loop)
+    return () => {
+      cancelAnimationFrame(raf)
+      const canvas = ballCanvasRef.current
+      canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
+    }
+  }, [phase, cfg, battingX, reducedMotion])
 
   // No-hand warning
   useEffect(() => {
@@ -543,23 +658,12 @@ function PlayingView({
   useEffect(() => () => {
     if (judgeTimer.current) clearTimeout(judgeTimer.current)
     if (inningTimer.current) clearTimeout(inningTimer.current)
+    if (endTimer.current) clearTimeout(endTimer.current)
+    if (windupTimer.current) clearTimeout(windupTimer.current)
   }, [])
 
   const total    = hitCount + missCount
   const accuracy = total > 0 ? Math.round((hitCount / total) * 100) : 0
-
-  // 當前這顆球的視覺 meta + keyframes（同一時間只有一顆球，成本可忽略）
-  const ballVisuals = useMemo(() => {
-    return targets.map(t => {
-      const meta = ballMetaRef.current.get(t.id)
-      if (!meta) return null
-      const def = PITCH_DEFS[meta.type]
-      const keyName = `pitchFly${Math.round(t.id * 1000) % 1_000_000_000}`
-      const kf = buildBallKeyframes(t, meta, def, keyName, cfg)
-      const totalMs = meta.flightMs + Math.max(cfg.goodMs + 250, 400)
-      return { id: t.id, meta, def, keyName, kf, totalMs }
-    }).filter((v): v is NonNullable<typeof v> => v !== null)
-  }, [targets, cfg])
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden game-play-screen game-theme-meadow">
@@ -586,7 +690,7 @@ function PlayingView({
           )}
         </div>
         <div className="text-right">
-          <div className="text-xs opacity-70">全壘打數 / 好球</div>
+          <div className="text-xs opacity-70">擊中 / 好球</div>
           <div className="text-4xl font-black text-green-400 leading-none">
             {hitCount}<span className="text-xl text-gray-400">/{missCount}</span>
           </div>
@@ -602,17 +706,17 @@ function PlayingView({
       <div className="relative flex-1 overflow-hidden bg-black">
         <SceneBack theme="calm" />
 
-        {/* 投手丘＋簡易剪影角色（原創 CSS 圖形，投球瞬間揮臂） */}
+        {/* 投手丘＋簡易剪影角色（原創 CSS 圖形；揮臂先行，球在前送階段出手） */}
         <div className="absolute pointer-events-none select-none" style={{ left: '50%', top: '6%', transform: 'translateX(-50%)' }} aria-hidden>
           <div style={{ width: 118, height: 24, borderRadius: '50%', background: 'radial-gradient(circle at 40% 30%, #8a6a45, #5f4529 75%)', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.35))', margin: '0 auto' }} />
           <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', width: 46, height: 58, borderRadius: '46% 46% 40% 40% / 54% 54% 46% 46%', background: 'radial-gradient(circle at 34% 24%, rgba(255,255,255,0.32), transparent 45%), linear-gradient(#3B4A6B,#26314a)' }} />
           <div style={{ position: 'absolute', left: '50%', bottom: 66, transform: 'translateX(-50%)', width: 28, height: 28, borderRadius: '50%', background: 'radial-gradient(circle at 32% 28%, rgba(255,255,255,0.55), transparent 50%), #F2C08C' }} />
           <div
-            key={targets[0]?.id ?? 'idle'}
+            key={windupKey}
             style={{
               position: 'absolute', left: '50%', bottom: 52, width: 32, height: 9, borderRadius: 5,
-              background: '#3B4A6B', transformOrigin: 'left center',
-              animation: phase === 'playing' && !reducedMotion ? 'pitcherWindup 0.55s ease-in-out' : 'none',
+              background: '#3B4A6B', transformOrigin: 'left center', transform: 'rotate(8deg)',
+              animation: windupKey > 0 && phase === 'playing' && !reducedMotion ? 'pitcherWindup 0.55s ease-in-out' : 'none',
             }}
           />
         </div>
@@ -630,42 +734,18 @@ function PlayingView({
           className="absolute inset-0 w-full h-full object-cover"
           style={{ transform: isMirrored ? 'scaleX(-1)' : undefined, opacity: 0 }}
         />
-        {/* hook 原生渲染調暗：只借它的手部游標與命中殘影，主視覺由下方偽 3D 球負責 */}
+        {/* hook 原生渲染調暗：只借它的手部游標與命中殘影，主視覺由下面的 ballCanvas 負責 */}
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           style={{ transform: isMirrored ? 'scaleX(-1)' : undefined, opacity: 0.3 }}
         />
-
-        {/* 打擊區標記（呼吸光暈，聖經 §2.3／既有 tailwind target-pulse） */}
-        <div
-          className="absolute animate-target-pulse pointer-events-none"
-          style={{
-            left: `calc(${battingX * 100}% - ${cfg.hitRadiusPx * 0.5}px)`,
-            top: `calc(${BATTING_Y * 100}% - ${cfg.hitRadiusPx * 0.5}px)`,
-            width: cfg.hitRadiusPx, height: cfg.hitRadiusPx,
-            borderRadius: '50%',
-            border: '3px solid rgba(255,255,255,0.55)',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.16), rgba(255,255,255,0.03) 60%, transparent 72%)',
-            animationPlayState: reducedMotion ? 'paused' : 'running',
-          }}
+        {/* 遊戲層視覺 canvas：偽 3D 球＋打擊區光圈（與偵測 canvas 同尺寸/同 cover/同鏡像 → 座標一致） */}
+        <canvas
+          ref={ballCanvasRef}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          style={{ transform: isMirrored ? 'scaleX(-1)' : undefined }}
         />
-
-        {/* 偽 3D 飛行球（由小變大＋曲球/蝴蝶球視覺彎曲） */}
-        {ballVisuals.map(({ id, def, keyName, totalMs }) => (
-          <div
-            key={id}
-            className="absolute pointer-events-none"
-            style={{ width: cfg.hitRadiusPx * 1.9, height: cfg.hitRadiusPx * 1.9, animation: `${keyName} ${totalMs}ms linear forwards` }}
-          >
-            <div style={{
-              position: 'absolute', inset: 0, borderRadius: '50%',
-              backgroundImage: `url(${BASEBALL_SVG_URL})`, backgroundSize: 'contain',
-              filter: `drop-shadow(0 4px 10px rgba(0,0,0,0.4)) drop-shadow(0 0 14px ${def.tint}66)`,
-            }} />
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 30% 26%, rgba(255,255,255,0.55), transparent 46%)' }} />
-          </div>
-        ))}
 
         {/* 代償提醒（聳肩/前傾/側彎） */}
         <CompensationHint hint={poseHint} />
@@ -741,10 +821,9 @@ function PlayingView({
         @keyframes pitcherWindup {
           0%   { transform: rotate(8deg); }
           40%  { transform: rotate(-95deg); }
-          70%  { transform: rotate(38deg); }
+          78%  { transform: rotate(38deg); }
           100% { transform: rotate(8deg); }
         }
-        ${ballVisuals.map(b => b.kf).join('\n')}
       `}</style>
     </div>
   )
@@ -989,7 +1068,7 @@ export default function BaseballHitPage() {
       misses={results?.misses ?? 0}
       records={results?.records ?? []}
       pitchHits={results?.pitchHits ?? {}}
-      onReplay={() => { setResults(null); setPhase('countdown') }}
+      onReplay={() => { savedRef.current = false; setResults(null); setPhase('countdown') }}
       onHome={() => router.push('/')}
     />
   )
