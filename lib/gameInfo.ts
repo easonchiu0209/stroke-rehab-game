@@ -22,6 +22,7 @@ export const GAME_INFO: Record<string, GameInfo> = {
   'sit-to-stand':  { name: '坐到站',       emoji: '🪑', route: '/sit-to-stand' },
   'badminton':     { name: '復能羽球',     emoji: '🏸', route: '/badminton' },
   'rhythm-drum':   { name: '節奏復能鼓',   emoji: '🪘', route: '/rhythm-drum' },
+  'baseball-hit':  { name: '復能全壘打',   emoji: '⚾', route: '/baseball-hit' },
 }
 
 export const DIFF_LABELS: Record<string, string> = { easy: 'Level 1', medium: 'Level 2', hard: 'Level 3' }
