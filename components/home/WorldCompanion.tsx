@@ -31,11 +31,10 @@ export default function WorldCompanion({ displayName, signedIn, streak, weekCoun
     const stored = window.localStorage.getItem(WORLD_COMPANION_KEY)
     if (WORLD_COMPANIONS.some(item => item.id === stored)) setCompanionId(stored!)
 
-    const today = new Date()
-    const todayKey = taipeiDayKey(today)
+    const todayKey = taipeiDayKey()
     const lastVisit = window.localStorage.getItem(WORLD_LAST_VISIT_KEY)
     if (lastVisit) {
-      const gap = daysBetween(lastVisit, today)
+      const gap = daysBetween(lastVisit)
       setReturnDays(gap)
       if (gap === 2 || gap >= 7) {
         const bucket = gap >= 7 ? 'd7' : 'd2'
@@ -68,12 +67,12 @@ export default function WorldCompanion({ displayName, signedIn, streak, weekCoun
   const returnMission = useMemo(() => buildReturnMission(returnDays), [returnDays])
   const message = useMemo(() => {
     const name = displayName ?? '朋友'
-    if (returnMission) return `${name}，歡迎回來。今天不用補課，只要完成 1 場就好。`
-    if (cheer) return `${cheer.from}說：「${cheer.message}」`
-    if (!signedIn) return '先選一位夥伴，一起展開今天的復能冒險吧。'
-    if (weekCount >= 3) return `這週已完成 ${weekCount} 場，小鎮正在慢慢長大。`
-    if (streak >= 2) return `連續第 ${streak} 天，我一直都在這裡陪你。`
-    return `${name}，今天我們一起把節奏往前推一點。`
+    if (returnMission) return `${name}，回來就先接回節奏，不清空、不倒扣。`
+    if (cheer) return `${cheer.from}送你一句：${cheer.message}`
+    if (!signedIn) return '先登入也沒關係，我會把節奏留在這裡。'
+    if (weekCount >= 3) return `這週已經完成 ${weekCount} 場了，繼續保持。`
+    if (streak >= 2) return `連續 ${streak} 天了，節奏很穩。`
+    return `${name}，今天只要多完成一場就很好。`
   }, [cheer, displayName, returnMission, signedIn, streak, weekCount])
 
   function selectCompanion(id: string) {
@@ -85,9 +84,9 @@ export default function WorldCompanion({ displayName, signedIn, streak, weekCoun
   return (
     <div className="world-companion">
       {choosing ? (
-        <div className="world-companion-picker" role="dialog" aria-label="選擇夥伴">
+        <div className="world-companion-picker" role="dialog" aria-label="選擇陪伴角色">
           <div className="flex items-center justify-between gap-2">
-            <strong>夥伴選擇</strong>
+            <strong>選擇陪伴角色</strong>
             <button type="button" onClick={() => setChoosing(false)} className="world-icon-button" title="關閉">×</button>
           </div>
           <div className="mt-2 grid grid-cols-3 gap-2">
@@ -107,13 +106,13 @@ export default function WorldCompanion({ displayName, signedIn, streak, weekCoun
           </div>
         </div>
       ) : (
-        <div className="world-companion-speech" role="status">
+        <div className="world-companion-speech" role="status" aria-live="polite">
           <strong>{companion.name}</strong>
           <p>{message}</p>
           {returnMission && (
             <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-slate-800 shadow-sm">
               <div className="flex items-center justify-between gap-2">
-                <strong className="text-sm font-extrabold text-amber-900">{returnMission.title}</strong>
+                <strong className="text-sm font-extrabold text-amber-900">回歸保護</strong>
                 <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-black text-amber-700">
                   {returnMission.badge}
                 </span>
@@ -126,7 +125,7 @@ export default function WorldCompanion({ displayName, signedIn, streak, weekCoun
               </p>
               <div className="mt-2 flex items-center justify-between gap-2 text-xs font-black text-amber-800">
                 <span>{returnMission.progressLabel}</span>
-                <span>不清空、不倒扣、不責備</span>
+                <span>今天回來就算進度</span>
               </div>
             </div>
           )}
@@ -138,8 +137,8 @@ export default function WorldCompanion({ displayName, signedIn, streak, weekCoun
         onClick={() => setChoosing(value => !value)}
         className="world-companion-avatar"
         style={{ backgroundColor: companion.color }}
-        title="切換夥伴"
-        aria-label={`切換夥伴，目前是 ${companion.name}`}
+        title="切換陪伴角色"
+        aria-label={`切換陪伴角色，目前是 ${companion.name}`}
       >
         <span aria-hidden>{companion.emoji}</span>
       </button>
